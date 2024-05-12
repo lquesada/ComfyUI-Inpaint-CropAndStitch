@@ -17,7 +17,7 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 - `grow_mask_pixels`: How many pixels to grow the mask to provide a bit of a border, to be used in combination with `blur_radius_pixels`.
 - `fill_holes`: Whether to fully fill any holes (small or large) in the mask, that is, mark fully enclosed areas as part of the mask.
 - `blur_radius_pixels`: Whether to blur the mask, to be used in combination with `grow_mask_pixels`. Some models prefer blurred masks, some don't.
-- `adjust_to_preferred_sizes`: This will try to have width and/or height match any of the sizes in `preferred_sizes`, e.g. 512, 1024. Some models prefer this.
+- `adjust_to_preferred_sizes`: This will try to have width and/or height of the context area match any of the sizes in `preferred_sizes` by growing the context area (not upscaling), e.g. 512, 1024. Some models prefer this.
 - `prefer_square_size`: This will try to have width=height (if possible). Some models prefer this.
 - `internal_upscale_factor`: Upscale the image and mask between the crop and stitch phases. This means the sampling happens only around the context area but at a higher resolution (e.g. 2 for x2), then it is downsampled and merged with the original image. This in practice gets more details from models. If you want to obtain a higher resolution image, please upscale it before cropping/sampling/stitching.
 
