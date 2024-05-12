@@ -28,6 +28,7 @@ class InpaintCrop:
                 "adjust_to_preferred_sizes": ("BOOLEAN", {"default": False}),
                 "preferred_sizes": ("STRING", {"default": "128,256,512,768,1024,1344,1536,2048"}),
                 "prefer_square_size": ("BOOLEAN", {"default": False}),
+                "internal_upscale_factor": ("FLOAT", {"default": 1.00, "min": 1.0, "max": 100.0, "step": 0.01}),
            },
            "optional": {
                 "optional_context_mask": ("MASK",),
@@ -58,7 +59,12 @@ class InpaintCrop:
         return new_min, new_max
 
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, grow_mask_pixels, fill_holes, blur_radius_pixels, adjust_to_preferred_sizes, preferred_sizes, prefer_square_size, optional_context_mask = None):
+    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, grow_mask_pixels, fill_holes, blur_radius_pixels, adjust_to_preferred_sizes, preferred_sizes, prefer_square_size, internal_upscale_factor, optional_context_mask = None):
+        original_image = image
+        original_mask = mask
+        original_width = image.shape[2]
+        original_height = image.shape[1]
+
         # Invert mask if requested
         if invert_mask:
             mask = 1.0 - mask
@@ -102,6 +108,33 @@ class InpaintCrop:
             mask = torch.from_numpy(filtered_mask)
             mask = torch.clamp(mask, 0.0, 1.0)
 
+        # Upscale image and masks if requested, they will be downsized at stitch phase
+        effective_upscale_factor_x = 1.0
+        effective_upscale_factor_y = 1.0
+        if internal_upscale_factor > 1.001:
+            samples = image            
+            samples = samples.movedim(-1, 1)
+            width = round(samples.shape[3] * internal_upscale_factor)
+            height = round(samples.shape[2] * internal_upscale_factor)
+            samples = comfy.utils.bislerp(samples, width, height)
+            effective_upscale_factor_x = float(width)/float(original_width)
+            effective_upscale_factor_y = float(height)/float(original_height)
+            samples = samples.movedim(1, -1)
+            image = samples
+
+            samples = mask
+            samples = samples.unsqueeze(1)
+            samples = comfy.utils.bislerp(samples, width, height)
+            samples = samples.squeeze(1)
+            mask = samples
+
+            if optional_context_mask is not None:
+                samples = optional_context_mask
+                samples = samples.unsqueeze(1)
+                samples = comfy.utils.bislerp(samples, width, height)
+                samples = samples.squeeze(1)
+                optional_context_mask = samples
+
         # Set context mask if undefined. If present, expand with mask
         if optional_context_mask is None:
             context_mask = mask
@@ -112,8 +145,8 @@ class InpaintCrop:
         non_zero_indices = torch.nonzero(context_mask[0], as_tuple=True)
         if not non_zero_indices[0].size(0):
             # If there are no non-zero indices, return the original image and original mask
-            stitch = {'x': 0, 'y': 0, 'original_image': image, 'cropped_mask': mask}
-            return (stitch, image, mask)
+            stitch = {'x': 0, 'y': 0, 'original_image': original_image, 'cropped_mask': mask, 'rescale_x': effective_upscale_factor_x, 'rescale_y': effective_upscale_factor_y}
+            return (stitch, original_image, original_mask)
 
         # Compute context area from context mask
         y_min = torch.min(non_zero_indices[0]).item()
@@ -167,7 +200,7 @@ class InpaintCrop:
         cropped_mask = mask[:, y_min:y_max+1, x_min:x_max+1]
 
         # Return stitch (to be consumed by the class below), image, and mask
-        stitch = {'x': x_min, 'y': y_min, 'original_image': image, 'cropped_mask': cropped_mask}
+        stitch = {'x': x_min, 'y': y_min, 'original_image': original_image, 'cropped_mask': cropped_mask, 'rescale_x': effective_upscale_factor_x, 'rescale_y': effective_upscale_factor_y}
         return (stitch, cropped_image, cropped_mask)
 
 class InpaintStitch:
@@ -234,5 +267,26 @@ class InpaintStitch:
         x = stitch['x']
         y = stitch['y']
         stitched_image = original_image.clone().movedim(-1, 1)
+
+        inpaint_width = inpainted_image.shape[2]
+        inpaint_height = inpainted_image.shape[1]
+
+        # Downscale inpainted before stitching if we upscaled it before
+        if stitch['rescale_x'] > 1.001 or stitch['rescale_y'] > 1.001:
+            samples = inpainted_image.movedim(-1, 1)
+            width = round(float(inpaint_width)/stitch['rescale_x'])
+            height = round(float(inpaint_height)/stitch['rescale_y'])
+            x = round(float(x)/stitch['rescale_x'])
+            y = round(float(y)/stitch['rescale_y'])
+            samples = comfy.utils.bislerp(samples, width, height)
+            inpainted_image = samples.movedim(1, -1)
+            
+            samples = cropped_mask.movedim(-1, 1)
+            samples = samples.unsqueeze(0)
+            samples = comfy.utils.bislerp(samples, width, height)
+            samples = samples.squeeze(0)
+            cropped_mask = samples.movedim(1, -1)
+
         output = self.composite(stitched_image, inpainted_image.movedim(-1, 1), x, y, cropped_mask, 1).movedim(1, -1)
+
         return (output,)
