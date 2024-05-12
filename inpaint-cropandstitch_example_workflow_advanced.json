@@ -3,96 +3,6 @@
   "last_link_id": 20,
   "nodes": [
     {
-      "id": 6,
-      "type": "VAEEncodeForInpaint",
-      "pos": [
-        840,
-        190
-      ],
-      "size": {
-        "0": 230,
-        "1": 100
-      },
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 9
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 7
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 13
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            17
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEEncodeForInpaint"
-      },
-      "widgets_values": [
-        0
-      ]
-    },
-    {
-      "id": 2,
-      "type": "InpaintStitch",
-      "pos": [
-        1330,
-        200
-      ],
-      "size": {
-        "0": 180,
-        "1": 50
-      },
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "stitch",
-          "type": "STITCH",
-          "link": 8
-        },
-        {
-          "name": "inpainted_image",
-          "type": "IMAGE",
-          "link": 19
-        }
-      ],
-      "outputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "links": [
-            12
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintStitch"
-      }
-    },
-    {
       "id": 1,
       "type": "InpaintCrop",
       "pos": [
@@ -276,41 +186,16 @@
       "shape": 1
     },
     {
-      "id": 7,
-      "type": "PreviewImage",
-      "pos": [
-        1580,
-        320
-      ],
-      "size": {
-        "0": 670,
-        "1": 950
-      },
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 12
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "PreviewImage"
-      }
-    },
-    {
       "id": 3,
       "type": "LoadImage",
       "pos": [
         -110,
         110
       ],
-      "size": [
-        310,
-        560
-      ],
+      "size": {
+        "0": 310,
+        "1": 560
+      },
       "flags": {},
       "order": 0,
       "mode": 0,
@@ -455,10 +340,10 @@
         -110,
         730
       ],
-      "size": [
-        310,
-        560
-      ],
+      "size": {
+        "0": 310,
+        "1": 560
+      },
       "flags": {},
       "order": 2,
       "mode": 0,
@@ -487,6 +372,121 @@
         "clipspace/clipspace-mask-25875.70000000298.png [input]",
         "image"
       ]
+    },
+    {
+      "id": 6,
+      "type": "VAEEncodeForInpaint",
+      "pos": [
+        840,
+        260
+      ],
+      "size": {
+        "0": 230,
+        "1": 100
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 9
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 7
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            17
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncodeForInpaint"
+      },
+      "widgets_values": [
+        0
+      ]
+    },
+    {
+      "id": 2,
+      "type": "InpaintStitch",
+      "pos": [
+        1400,
+        210
+      ],
+      "size": {
+        "0": 180,
+        "1": 50
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "stitch",
+          "type": "STITCH",
+          "link": 8
+        },
+        {
+          "name": "inpainted_image",
+          "type": "IMAGE",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            12
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InpaintStitch"
+      }
+    },
+    {
+      "id": 7,
+      "type": "PreviewImage",
+      "pos": [
+        1620,
+        310
+      ],
+      "size": {
+        "0": 670,
+        "1": 950
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 12
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
     }
   ],
   "links": [
@@ -607,10 +607,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.6830134553650705,
+      "scale": 0.7513148009015777,
       "offset": [
-        522.4039075085502,
-        100.9024508256782
+        288.9655786919711,
+        17.58705847820291
       ]
     }
   },
