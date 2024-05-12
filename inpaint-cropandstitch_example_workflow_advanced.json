@@ -3,189 +3,6 @@
   "last_link_id": 20,
   "nodes": [
     {
-      "id": 1,
-      "type": "InpaintCrop",
-      "pos": [
-        370,
-        170
-      ],
-      "size": {
-        "0": 350,
-        "1": 290
-      },
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 1
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 2
-        },
-        {
-          "name": "optional_context_mask",
-          "type": "MASK",
-          "link": 20
-        }
-      ],
-      "outputs": [
-        {
-          "name": "stitch",
-          "type": "STITCH",
-          "links": [
-            8
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "cropped_image",
-          "type": "IMAGE",
-          "links": [
-            9
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "cropped_mask",
-          "type": "MASK",
-          "links": [
-            13
-          ],
-          "shape": 3,
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintCrop"
-      },
-      "widgets_values": [
-        20,
-        1.01,
-        false,
-        11,
-        false,
-        20,
-        false,
-        "128,256,512,768,1024,1344,1536,2048",
-        false
-      ]
-    },
-    {
-      "id": 8,
-      "type": "KSampler Adv. (Efficient)",
-      "pos": [
-        1070,
-        550
-      ],
-      "size": [
-        330,
-        630
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 14
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 15
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 16
-        },
-        {
-          "name": "latent_image",
-          "type": "LATENT",
-          "link": 17
-        },
-        {
-          "name": "optional_vae",
-          "type": "VAE",
-          "link": 18
-        },
-        {
-          "name": "script",
-          "type": "SCRIPT",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": null,
-          "shape": 3
-        },
-        {
-          "name": "CONDITIONING+",
-          "type": "CONDITIONING",
-          "links": null,
-          "shape": 3
-        },
-        {
-          "name": "CONDITIONING-",
-          "type": "CONDITIONING",
-          "links": null,
-          "shape": 3
-        },
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": null,
-          "shape": 3
-        },
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": null,
-          "shape": 3
-        },
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            19
-          ],
-          "shape": 3,
-          "slot_index": 5
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "KSampler Adv. (Efficient)"
-      },
-      "widgets_values": [
-        "enable",
-        1036058331398113,
-        null,
-        20,
-        3,
-        "dpmpp_2m_sde",
-        "normal",
-        0,
-        10000,
-        "disable",
-        "auto",
-        "true"
-      ],
-      "color": "#223333",
-      "bgcolor": "#335555",
-      "shape": 1
-    },
-    {
       "id": 3,
       "type": "LoadImage",
       "pos": [
@@ -369,57 +186,8 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "clipspace/clipspace-mask-25875.70000000298.png [input]",
+        "clipspace/clipspace-mask-105007.79999998212.png [input]",
         "image"
-      ]
-    },
-    {
-      "id": 6,
-      "type": "VAEEncodeForInpaint",
-      "pos": [
-        840,
-        260
-      ],
-      "size": {
-        "0": 230,
-        "1": 100
-      },
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 9
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 7
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 13
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            17
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEEncodeForInpaint"
-      },
-      "widgets_values": [
-        0
       ]
     },
     {
@@ -487,6 +255,239 @@
       "properties": {
         "Node name for S&R": "PreviewImage"
       }
+    },
+    {
+      "id": 1,
+      "type": "InpaintCrop",
+      "pos": [
+        370,
+        170
+      ],
+      "size": {
+        "0": 350,
+        "1": 314
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 2
+        },
+        {
+          "name": "optional_context_mask",
+          "type": "MASK",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "stitch",
+          "type": "STITCH",
+          "links": [
+            8
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "cropped_image",
+          "type": "IMAGE",
+          "links": [
+            9
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "cropped_mask",
+          "type": "MASK",
+          "links": [
+            13
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InpaintCrop"
+      },
+      "widgets_values": [
+        20,
+        1.01,
+        false,
+        2,
+        false,
+        10,
+        false,
+        "128,256,512,768,1024,1344,1536,2048",
+        false,
+        1
+      ]
+    },
+    {
+      "id": 6,
+      "type": "VAEEncodeForInpaint",
+      "pos": [
+        840,
+        260
+      ],
+      "size": {
+        "0": 230,
+        "1": 100
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 9
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 7
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            17
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncodeForInpaint"
+      },
+      "widgets_values": [
+        12
+      ]
+    },
+    {
+      "id": 8,
+      "type": "KSampler Adv. (Efficient)",
+      "pos": [
+        1070,
+        550
+      ],
+      "size": [
+        330,
+        630
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 14
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 15
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 16
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 17
+        },
+        {
+          "name": "optional_vae",
+          "type": "VAE",
+          "link": 18
+        },
+        {
+          "name": "script",
+          "type": "SCRIPT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            19
+          ],
+          "shape": 3,
+          "slot_index": 5
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler Adv. (Efficient)"
+      },
+      "widgets_values": [
+        "enable",
+        1036058331398114,
+        null,
+        20,
+        3,
+        "dpmpp_2m_sde",
+        "normal",
+        0,
+        10000,
+        "disable",
+        "auto",
+        "true"
+      ],
+      "color": "#223333",
+      "bgcolor": "#335555",
+      "shape": 1
     }
   ],
   "links": [
@@ -609,8 +610,8 @@
     "ds": {
       "scale": 0.7513148009015777,
       "offset": [
-        288.9655786919711,
-        17.58705847820291
+        88.61002487589842,
+        81.57125181543908
       ]
     }
   },
