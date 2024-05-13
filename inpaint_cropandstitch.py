@@ -22,13 +22,14 @@ class InpaintCrop:
                 "context_expand_pixels": ("INT", {"default": 10, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "context_expand_factor": ("FLOAT", {"default": 1.01, "min": 1.0, "max": 100.0, "step": 0.01}),
                 "invert_mask": ("BOOLEAN", {"default": False}),
-                "grow_mask_pixels": ("INT", {"default": 12.0, "min": 0.0, "max": 1000, "step": 1}),
+                "grow_mask_pixels": ("INT", {"default": 12, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "fill_holes": ("BOOLEAN", {"default": True}),
                 "blur_radius_pixels": ("FLOAT", {"default": 3.0, "min": 0.0, "max": nodes.MAX_RESOLUTION, "step": 0.1}),
                 "adjust_to_preferred_sizes": ("BOOLEAN", {"default": False}),
                 "preferred_sizes": ("STRING", {"default": "1024"}),
                 "prefer_square_size": ("BOOLEAN", {"default": False}),
                 "internal_upscale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}),
+                "padding": ("INT", {"default": 32, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
            },
            "optional": {
                 "optional_context_mask": ("MASK",),
@@ -58,8 +59,30 @@ class InpaintCrop:
     
         return new_min, new_max
 
+    def apply_padding(self, min_val, max_val, max_boundary, padding):
+        range_size = max_val - min_val + 1
+        if range_size % padding != 0:
+            # Calculate the required increment to make the range a multiple of the padding
+            increment = padding - (range_size % padding)
+
+            # Adjust the range to include the increment
+            new_max_val = max_val + increment
+
+            # Check if the new maximum exceeds the boundary, and adjust the minimum accordingly
+            if new_max_val >= max_boundary:
+                new_max_val = max_boundary - 1
+                new_min_val = new_max_val - (padding * ((new_max_val - min_val + 1) // padding)) + 1
+                # Ensure new_min_val does not go below 0
+                new_min_val = max(new_min_val, 0)
+            else:
+                new_min_val = min_val
+
+            return new_min_val, new_max_val
+        else:
+            return min_val, max_val
+
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, grow_mask_pixels, fill_holes, blur_radius_pixels, adjust_to_preferred_sizes, preferred_sizes, prefer_square_size, internal_upscale_factor, optional_context_mask = None):
+    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, grow_mask_pixels, fill_holes, blur_radius_pixels, adjust_to_preferred_sizes, preferred_sizes, prefer_square_size, internal_upscale_factor, padding, optional_context_mask = None):
         original_image = image
         original_mask = mask
         original_width = image.shape[2]
@@ -165,6 +188,21 @@ class InpaintCrop:
         y_max = min(y_max + y_grow // 2, height - 1)
         x_min = max(x_min - x_grow // 2, 0)
         x_max = min(x_max + x_grow // 2, width - 1)
+
+        # Pad area (if possible) to avoid the sampler returning smaller results
+        if padding > 1:
+            print(x_min, x_max, y_min, y_max, padding)
+            x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
+            y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
+            print(x_min, x_max, y_min, y_max)
+        
+        # Limit to max image size
+        y_min = max(y_min, 0)
+        y_max = min(y_max, height - 1)
+        x_min = max(x_min, 0)
+        x_max = min(x_max, width - 1)
+        y_size = y_max - y_min + 1
+        x_size = x_max - x_min + 1
 
         # Adjust to the smallest preferred size larger than the current size if possible
         if adjust_to_preferred_sizes:

@@ -21,6 +21,7 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 - `preferred_sizes`: Comma-separated list of preferred sizes, e.g. "512,1024". Default is 1024 because it fits most of the use cases of this feature.
 - `prefer_square_size`: This will try to have width=height (if possible). Some models prefer this.
 - `internal_upscale_factor`: Upscale the image and mask between the crop and stitch phases. This means the sampling happens only around the context area but at a higher resolution (e.g. 2 for x2), then it is downsampled and merged with the original image. This in practice gets more details from models. If you want to obtain a higher resolution image, please upscale it before cropping/sampling/stitching. This can also be lower than 1 for the rare cases you need it, such as the original image too large and the model generating double heads.
+- `padding`: Pad the cropped image and mask to a certain number of pixels in order to avoid artifacts. 8, 16, 32 are reasonable values.
 
 ## Simple example
 This example inpaints by sampling on a small section of the larger image. It runs ~20x faster than sampling on the whole image.
