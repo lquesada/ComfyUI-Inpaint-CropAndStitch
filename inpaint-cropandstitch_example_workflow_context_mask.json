@@ -3,199 +3,11 @@
   "last_link_id": 20,
   "nodes": [
     {
-      "id": 3,
-      "type": "LoadImage",
-      "pos": [
-        -110,
-        110
-      ],
-      "size": {
-        "0": 310,
-        "1": 560
-      },
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            1
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            2
-          ],
-          "shape": 3,
-          "slot_index": 1
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "clipspace/clipspace-mask-149250.40000000596.png [input]",
-        "image"
-      ]
-    },
-    {
-      "id": 4,
-      "type": "Efficient Loader",
-      "pos": [
-        420,
-        600
-      ],
-      "size": {
-        "0": 400,
-        "1": 462
-      },
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "lora_stack",
-          "type": "LORA_STACK",
-          "link": null
-        },
-        {
-          "name": "cnet_stack",
-          "type": "CONTROL_NET_STACK",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            14
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "CONDITIONING+",
-          "type": "CONDITIONING",
-          "links": [
-            15
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "CONDITIONING-",
-          "type": "CONDITIONING",
-          "links": [
-            16
-          ],
-          "shape": 3,
-          "slot_index": 2
-        },
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": null,
-          "shape": 3,
-          "slot_index": 3
-        },
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": [
-            7,
-            18
-          ],
-          "shape": 3,
-          "slot_index": 4
-        },
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": null,
-          "shape": 3
-        },
-        {
-          "name": "DEPENDENCIES",
-          "type": "DEPENDENCIES",
-          "links": null,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Efficient Loader"
-      },
-      "widgets_values": [
-        "sd1.5/photon_v1.safetensors",
-        "Baked VAE",
-        -1,
-        "None",
-        1,
-        1,
-        "watercolor, a banana flying towards an orange moon in the clear sky",
-        "",
-        "none",
-        "comfy",
-        512,
-        512,
-        1
-      ],
-      "color": "#332233",
-      "bgcolor": "#553355",
-      "shape": 1
-    },
-    {
-      "id": 9,
-      "type": "LoadImage",
-      "pos": [
-        -110,
-        730
-      ],
-      "size": {
-        "0": 310,
-        "1": 560
-      },
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            20
-          ],
-          "shape": 3,
-          "slot_index": 1
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "clipspace/clipspace-mask-105007.79999998212.png [input]",
-        "image"
-      ]
-    },
-    {
       "id": 2,
       "type": "InpaintStitch",
       "pos": [
-        1400,
-        210
+        1840,
+        170
       ],
       "size": {
         "0": 180,
@@ -235,8 +47,8 @@
       "id": 7,
       "type": "PreviewImage",
       "pos": [
-        1620,
-        310
+        2060,
+        320
       ],
       "size": {
         "0": 670,
@@ -257,10 +69,101 @@
       }
     },
     {
+      "id": 6,
+      "type": "VAEEncodeForInpaint",
+      "pos": [
+        1260,
+        260
+      ],
+      "size": {
+        "0": 230,
+        "1": 100
+      },
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 9
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 7
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            17
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncodeForInpaint"
+      },
+      "widgets_values": [
+        12
+      ]
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        320,
+        220
+      ],
+      "size": [
+        300,
+        500
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            2
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "clipspace/clipspace-mask-274269.09999999404.png [input]",
+        "image"
+      ]
+    },
+    {
       "id": 1,
       "type": "InpaintCrop",
       "pos": [
-        370,
+        790,
         170
       ],
       "size": {
@@ -320,72 +223,61 @@
         "Node name for S&R": "InpaintCrop"
       },
       "widgets_values": [
-        20,
+        10,
         1.01,
         false,
         2,
-        false,
-        10,
-        false,
-        "128,256,512,768,1024,1344,1536,2048",
-        false,
-        1
+        "free size",
+        1024,
+        1,
+        32
       ]
     },
     {
-      "id": 6,
-      "type": "VAEEncodeForInpaint",
+      "id": 9,
+      "type": "LoadImage",
       "pos": [
-        840,
-        260
+        320,
+        780
       ],
       "size": {
-        "0": 230,
-        "1": 100
+        "0": 300,
+        "1": 500
       },
       "flags": {},
-      "order": 4,
+      "order": 1,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 9
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 7
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 13
-        }
-      ],
       "outputs": [
         {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            17
-          ],
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [],
           "shape": 3,
           "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            20
+          ],
+          "shape": 3,
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEEncodeForInpaint"
+        "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        12
+        "clipspace/clipspace-mask-178946.90000000596.png [input]",
+        "image"
       ]
     },
     {
       "id": 8,
       "type": "KSampler Adv. (Efficient)",
       "pos": [
-        1070,
+        1490,
         550
       ],
       "size": [
@@ -487,6 +379,112 @@
       ],
       "color": "#223333",
       "bgcolor": "#335555",
+      "shape": 1
+    },
+    {
+      "id": 4,
+      "type": "Efficient Loader",
+      "pos": [
+        840,
+        600
+      ],
+      "size": {
+        "0": 400,
+        "1": 462
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "type": "LORA_STACK",
+          "link": null
+        },
+        {
+          "name": "cnet_stack",
+          "type": "CONTROL_NET_STACK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            14
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": [
+            15
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": [
+            16
+          ],
+          "shape": 3,
+          "slot_index": 2
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3,
+          "slot_index": 3
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            7,
+            18
+          ],
+          "shape": 3,
+          "slot_index": 4
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "DEPENDENCIES",
+          "type": "DEPENDENCIES",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Efficient Loader"
+      },
+      "widgets_values": [
+        "sd1.5-inpainting/lazymixRealAmateur_v40Inpainting.safetensors",
+        "Baked VAE",
+        -1,
+        "None",
+        1,
+        1,
+        "clean sky",
+        "",
+        "none",
+        "comfy",
+        512,
+        512,
+        1
+      ],
+      "color": "#332233",
+      "bgcolor": "#553355",
       "shape": 1
     }
   ],
@@ -608,10 +606,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7513148009015777,
+      "scale": 0.7513148009015782,
       "offset": [
-        88.61002487589842,
-        81.57125181543908
+        73.3218161520492,
+        79.35282891694116
       ]
     }
   },

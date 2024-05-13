@@ -3,52 +3,125 @@
   "last_link_id": 19,
   "nodes": [
     {
-      "id": 3,
-      "type": "LoadImage",
+      "id": 2,
+      "type": "InpaintStitch",
       "pos": [
-        -360,
-        270
+        1840,
+        170
       ],
       "size": {
-        "0": 630,
-        "1": 990
+        "0": 180,
+        "1": 50
       },
       "flags": {},
-      "order": 0,
+      "order": 5,
       "mode": 0,
+      "inputs": [
+        {
+          "name": "stitch",
+          "type": "STITCH",
+          "link": 8
+        },
+        {
+          "name": "inpainted_image",
+          "type": "IMAGE",
+          "link": 19
+        }
+      ],
       "outputs": [
         {
-          "name": "IMAGE",
+          "name": "image",
           "type": "IMAGE",
           "links": [
-            1
+            12
           ],
           "shape": 3,
           "slot_index": 0
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            2
-          ],
-          "shape": 3,
-          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "LoadImage"
+        "Node name for S&R": "InpaintStitch"
+      }
+    },
+    {
+      "id": 7,
+      "type": "PreviewImage",
+      "pos": [
+        2060,
+        320
+      ],
+      "size": {
+        "0": 670,
+        "1": 950
+      },
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 12
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 6,
+      "type": "VAEEncodeForInpaint",
+      "pos": [
+        1260,
+        260
+      ],
+      "size": {
+        "0": 230,
+        "1": 100
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 9
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 7
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            17
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncodeForInpaint"
       },
       "widgets_values": [
-        "clipspace/clipspace-mask-149250.40000000596.png [input]",
-        "image"
+        12
       ]
     },
     {
       "id": 8,
       "type": "KSampler Adv. (Efficient)",
       "pos": [
-        1070,
+        1490,
         550
       ],
       "size": [
@@ -153,201 +226,10 @@
       "shape": 1
     },
     {
-      "id": 2,
-      "type": "InpaintStitch",
-      "pos": [
-        1420,
-        170
-      ],
-      "size": {
-        "0": 180,
-        "1": 50
-      },
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "stitch",
-          "type": "STITCH",
-          "link": 8
-        },
-        {
-          "name": "inpainted_image",
-          "type": "IMAGE",
-          "link": 19
-        }
-      ],
-      "outputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "links": [
-            12
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintStitch"
-      }
-    },
-    {
-      "id": 7,
-      "type": "PreviewImage",
-      "pos": [
-        1640,
-        320
-      ],
-      "size": {
-        "0": 670,
-        "1": 950
-      },
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 12
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "PreviewImage"
-      }
-    },
-    {
-      "id": 6,
-      "type": "VAEEncodeForInpaint",
-      "pos": [
-        840,
-        260
-      ],
-      "size": {
-        "0": 230,
-        "1": 100
-      },
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 9
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 7
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 13
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            17
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEEncodeForInpaint"
-      },
-      "widgets_values": [
-        12
-      ]
-    },
-    {
-      "id": 1,
-      "type": "InpaintCrop",
-      "pos": [
-        370,
-        170
-      ],
-      "size": {
-        "0": 350,
-        "1": 314
-      },
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 1
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 2
-        },
-        {
-          "name": "optional_context_mask",
-          "type": "MASK",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "stitch",
-          "type": "STITCH",
-          "links": [
-            8
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "cropped_image",
-          "type": "IMAGE",
-          "links": [
-            9
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "cropped_mask",
-          "type": "MASK",
-          "links": [
-            13
-          ],
-          "shape": 3,
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintCrop"
-      },
-      "widgets_values": [
-        20,
-        1.01,
-        false,
-        2,
-        false,
-        10,
-        false,
-        "128,256,512,768,1024,1344,1536,2048",
-        false,
-        1
-      ]
-    },
-    {
       "id": 4,
       "type": "Efficient Loader",
       "pos": [
-        420,
+        840,
         600
       ],
       "size": {
@@ -355,7 +237,7 @@
         "1": 462
       },
       "flags": {},
-      "order": 1,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
@@ -431,13 +313,13 @@
         "Node name for S&R": "Efficient Loader"
       },
       "widgets_values": [
-        "sd1.5/dreamshaper_8.safetensors",
+        "sd1.5-inpainting/lazymixRealAmateur_v40Inpainting.safetensors",
         "Baked VAE",
         -1,
         "None",
         1,
         1,
-        "watercolor, a banana flying in the clear sky, background is a soft gradient",
+        "a banana",
         "",
         "none",
         "comfy",
@@ -448,6 +330,122 @@
       "color": "#332233",
       "bgcolor": "#553355",
       "shape": 1
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        60,
+        270
+      ],
+      "size": {
+        "0": 630,
+        "1": 990
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            2
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "clipspace/clipspace-mask-41523.19999998808.png [input]",
+        "image"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "InpaintCrop",
+      "pos": [
+        790,
+        170
+      ],
+      "size": {
+        "0": 350,
+        "1": 314
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 2
+        },
+        {
+          "name": "optional_context_mask",
+          "type": "MASK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "stitch",
+          "type": "STITCH",
+          "links": [
+            8
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "cropped_image",
+          "type": "IMAGE",
+          "links": [
+            9
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "cropped_mask",
+          "type": "MASK",
+          "links": [
+            13
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InpaintCrop"
+      },
+      "widgets_values": [
+        10,
+        1.01,
+        false,
+        2,
+        "forced size",
+        512,
+        2,
+        32
+      ]
     }
   ],
   "links": [
@@ -560,10 +558,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.620921323059155,
+      "scale": 0.7513148009015782,
       "offset": [
-        508.2955081100582,
-        99.43306685288564
+        73.3218161520492,
+        79.35282891694116
       ]
     }
   },

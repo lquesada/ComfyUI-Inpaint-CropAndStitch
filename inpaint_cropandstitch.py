@@ -12,8 +12,9 @@ class InpaintCrop:
 
     This node crop before sampling and stitch after sampling for fast, efficient inpainting without altering unmasked areas.
     Context area can be specified via expand pixels and expand factor or via a separate (optional) mask.
-    Mask can be grown, holes in it filled, blurred, adjusted to preferred sizes or made square.
+    Works free size and also forced size.
     """
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -23,14 +24,11 @@ class InpaintCrop:
                 "context_expand_pixels": ("INT", {"default": 10, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "context_expand_factor": ("FLOAT", {"default": 1.01, "min": 1.0, "max": 100.0, "step": 0.01}),
                 "invert_mask": ("BOOLEAN", {"default": False}),
-                "grow_mask_pixels": ("INT", {"default": 12, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
-                "fill_holes": ("BOOLEAN", {"default": True}),
-                "blur_radius_pixels": ("FLOAT", {"default": 3.0, "min": 0.0, "max": nodes.MAX_RESOLUTION, "step": 0.1}),
-                "adjust_to_preferred_sizes": ("BOOLEAN", {"default": False}),
-                "preferred_sizes": ("STRING", {"default": "1024"}),
-                "prefer_square_size": ("BOOLEAN", {"default": False}),
-                "internal_upscale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}),
-                "padding": ("INT", {"default": 32, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
+                "fill_mask_holes": ("BOOLEAN", {"default": True}),
+                "mode": (["free size", "forced size"], {"default": "free size"}),
+                "force_size": ([512, 768, 1024, 1344, 2048, 4096, 8192], {"default": 1024}),
+                "rescale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}),
+                "padding": ([8, 16, 32, 64, 128, 256, 512], {"default": 32}),
            },
            "optional": {
                 "optional_context_mask": ("MASK",),
@@ -44,21 +42,39 @@ class InpaintCrop:
 
     FUNCTION = "inpaint_crop"
 
-    def adjust_to_preferred_size(self, min_val, max_val, max_dimension, preferred_size):
-        # Calculate the new min and max to center the preferred size around the current center
-        center = (min_val + max_val) // 2
-        new_min = center - preferred_size // 2
-        new_max = new_min + preferred_size - 1
-    
-        # Adjust to ensure the coordinates do not exceed the image boundaries
-        if new_min < 0:
-            new_min = 0
-            new_max = preferred_size - 1
-        if new_max >= max_dimension:
-            new_max = max_dimension - 1
-            new_min = new_max - preferred_size + 1
-    
-        return new_min, new_max
+    def adjust_to_square(self, x_min, x_max, y_min, y_max, width, height, target_size = None):
+        if target_size is None:
+            x_size = x_max - x_min + 1
+            y_size = y_max - y_min + 1
+            target_size = max(x_size, y_size)
+
+        # Calculate the midpoint of the current x and y ranges
+        x_mid = (x_min + x_max) // 2
+        y_mid = (y_min + y_max) // 2
+
+        # Adjust x_min, x_max, y_min, y_max to make the range square centered around the midpoints
+        x_min = max(x_mid - target_size // 2, 0)
+        x_max = x_min + target_size - 1
+        y_min = max(y_mid - target_size // 2, 0)
+        y_max = y_min + target_size - 1
+
+        # Ensure the ranges do not exceed the image boundaries
+        if x_max >= width:
+            x_max = width - 1
+            x_min = x_max - target_size + 1
+        if y_max >= height:
+            y_max = height - 1
+            y_min = y_max - target_size + 1
+
+        # Additional checks to make sure all coordinates are within bounds
+        if x_min < 0:
+            x_min = 0
+            x_max = target_size - 1
+        if y_min < 0:
+            y_min = 0
+            y_max = target_size - 1
+
+        return x_min, x_max, y_min, y_max
 
     def apply_padding(self, min_val, max_val, max_boundary, padding):
         # Calculate the midpoint and the original range size
@@ -88,33 +104,26 @@ class InpaintCrop:
         return new_min_val, new_max_val
 
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, grow_mask_pixels, fill_holes, blur_radius_pixels, adjust_to_preferred_sizes, preferred_sizes, prefer_square_size, internal_upscale_factor, padding, optional_context_mask = None):
+    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, force_size, rescale_factor, padding, optional_context_mask = None):
         original_image = image
         original_mask = mask
         original_width = image.shape[2]
         original_height = image.shape[1]
 
+        #Validate or initialize mask
+        if mask.shape[1] != image.shape[1] or mask.shape[2] != image.shape[2]:
+            non_zero_indices = torch.nonzero(mask[0], as_tuple=True)
+            if not non_zero_indices[0].size(0):
+                mask = torch.zeros_like(image[:, :, :, 0])
+            else:
+                assert False, "mask size must match image size"
+
         # Invert mask if requested
         if invert_mask:
             mask = 1.0 - mask
 
-        # Grow mask if requested
-        if grow_mask_pixels > 0:
-            growmask = mask.reshape((-1, mask.shape[-2], mask.shape[-1])).cpu()
-            out = []
-            for m in growmask:
-                mask_np = m.numpy()
-                kernel_size = grow_mask_pixels * 2 + 1
-                kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
-                dilated_mask = grey_dilation(mask_np, footprint=kernel)
-                output = dilated_mask.astype(np.float32) * 255
-                output = torch.from_numpy(output)
-                out.append(output)
-            mask = torch.stack(out, dim=0)
-            mask = torch.clamp(mask, 0.0, 1.0)
-
         # Fill holes if requested
-        if fill_holes:
+        if fill_mask_holes:
             holemask = mask.reshape((-1, mask.shape[-2], mask.shape[-1])).cpu()
             out = []
             for m in holemask:
@@ -129,24 +138,22 @@ class InpaintCrop:
             mask = torch.stack(out, dim=0)
             mask = torch.clamp(mask, 0.0, 1.0)
 
-        # Blur mask if requested
-        if blur_radius_pixels > 0:
-            mask_np = mask.numpy()
-            sigma = blur_radius_pixels / 2
-            filtered_mask = gaussian_filter(mask_np, sigma=sigma)
-            mask = torch.from_numpy(filtered_mask)
-            mask = torch.clamp(mask, 0.0, 1.0)
-
-        # Set context mask if undefined. If present, expand with mask
+        # Validate or initialize context mask
         if optional_context_mask is None:
             context_mask = mask
+        elif optional_context_mask.shape[1] != image.shape[1] or optional_context_mask.shape[2] != image.shape[2]:
+            non_zero_indices = torch.nonzero(optional_context_mask[0], as_tuple=True)
+            if not non_zero_indices[0].size(0):
+                context_mask = mask
+            else:
+                assert False, "context_mask size must match image size"
         else:
             context_mask = optional_context_mask + mask 
             context_mask = torch.clamp(context_mask, 0.0, 1.0)
 
+        # If there are no non-zero indices in the context_mask, return the original image and original mask
         non_zero_indices = torch.nonzero(context_mask[0], as_tuple=True)
         if not non_zero_indices[0].size(0):
-            # If there are no non-zero indices, return the original image and original mask
             stitch = {'x': 0, 'y': 0, 'original_image': original_image, 'cropped_mask': mask, 'rescale_x': 1.0, 'rescale_y': 1.0}
             return (stitch, original_image, original_mask)
 
@@ -168,74 +175,78 @@ class InpaintCrop:
         x_min = max(x_min - x_grow // 2, 0)
         x_max = min(x_max + x_grow // 2, width - 1)
 
-        # Adjust to the smallest preferred size larger than the current size if possible
-        if adjust_to_preferred_sizes:
-            preferred_sizes_parsed = [int(size) for size in preferred_sizes.split(',')]
-            preferred_sizes_parsed.sort()
-            preferred_x_size = next((size for size in preferred_sizes_parsed if size > x_size), None)
-            preferred_y_size = next((size for size in preferred_sizes_parsed if size > y_size), None)
-            if preferred_x_size is None:
-                preferred_x_size = x_size
-            if preferred_y_size is None:
-                preferred_y_size = y_size
-            if prefer_square_size:
-                preferred_x_size = preferred_y_size = max(preferred_x_size, preferred_y_size)
-            if preferred_x_size > width:
-                preferred_x_size = width
-            if preferred_y_size > height:
-                preferred_y_size = height
-            if preferred_x_size is not None:
-                x_min, x_max = self.adjust_to_preferred_size(x_min, x_max, width, preferred_x_size)
-            if preferred_y_size is not None:
-                y_min, y_max = self.adjust_to_preferred_size(y_min, y_max, height, preferred_y_size)
-        elif prefer_square_size:
-            preferred_x_size = preferred_y_size = max(x_size, y_size)
-            if preferred_x_size > width:
-                preferred_x_size = width
-            if preferred_y_size > height:
-                preferred_y_size = height
-            x_min, x_max = self.adjust_to_preferred_size(x_min, x_max, width, preferred_x_size)
-            y_min, y_max = self.adjust_to_preferred_size(y_min, y_max, height, preferred_y_size)
-
-        # Upscale image and masks if requested, they will be downsized at stitch phase
         effective_upscale_factor_x = 1.0
         effective_upscale_factor_y = 1.0
-        if internal_upscale_factor < 0.999 or internal_upscale_factor > 1.001:
-            samples = image            
-            samples = samples.movedim(-1, 1)
-            width = round(samples.shape[3] * internal_upscale_factor)
-            height = round(samples.shape[2] * internal_upscale_factor)
-            samples = comfy.utils.bislerp(samples, width, height)
-            effective_upscale_factor_x = float(width)/float(original_width)
-            effective_upscale_factor_y = float(height)/float(original_height)
-            samples = samples.movedim(1, -1)
-            image = samples
+        # Adjust to preferred size
+        if mode == 'forced size':
+            # Turn into square
+            x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height)
+            current_size = x_max - x_min + 1  # Assuming x_max - x_min == y_max - y_min due to square adjustment
+            if current_size != force_size:
+                # Upscale to fit in the force_size square, will be downsized at stitch phase
+                upscale_factor = force_size / current_size
 
-            samples = mask
-            samples = samples.unsqueeze(1)
-            samples = comfy.utils.bislerp(samples, width, height)
-            samples = samples.squeeze(1)
-            mask = samples
+                samples = image            
+                samples = samples.movedim(-1, 1)
 
-            x_min = math.floor(x_min * effective_upscale_factor_x)
-            x_max = math.ceil(x_max * effective_upscale_factor_x)
-            y_min = math.floor(y_min * effective_upscale_factor_y)
-            y_max = math.ceil(y_max * effective_upscale_factor_y)
+                width = math.floor(samples.shape[3] * upscale_factor)
+                height = math.floor(samples.shape[2] * upscale_factor)
+                samples = comfy.utils.bislerp(samples, width, height)
+                effective_upscale_factor_x = float(width)/float(original_width)
+                effective_upscale_factor_y = float(height)/float(original_height)
+                samples = samples.movedim(1, -1)
+                image = samples
 
-        # Pad area (if possible) to avoid the sampler returning smaller results
-        width = image.shape[2]
-        height = image.shape[1]
-        if padding > 1:
-            x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
-            y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
-        
-        # Ensure that they don't go outside of the image
-        x_min = max(x_min, 0)
-        x_max = min(x_max, width - 1)
-        y_min = max(y_min, 0)
-        y_max = min(y_max, height - 1)
-        x_size = x_max - x_min + 1
-        y_size = y_max - y_min + 1
+                samples = mask
+                samples = samples.unsqueeze(1)
+                samples = comfy.utils.bislerp(samples, width, height)
+                samples = samples.squeeze(1)
+                mask = samples
+
+                x_min = math.floor(x_min * effective_upscale_factor_x)
+                x_max = math.floor(x_max * effective_upscale_factor_x)
+                y_min = math.floor(y_min * effective_upscale_factor_y)
+                y_max = math.floor(y_max * effective_upscale_factor_y)
+
+                # Readjust to force size because the upscale math may not round well
+                x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height, target_size=force_size)
+
+        elif mode == 'free size':
+            # Upscale image and masks if requested, they will be downsized at stitch phase
+            if rescale_factor < 0.999 or rescale_factor > 1.001:
+                samples = image            
+                samples = samples.movedim(-1, 1)
+
+                width = math.floor(samples.shape[3] * rescale_factor)
+                height = math.floor(samples.shape[2] * rescale_factor)
+                samples = comfy.utils.bislerp(samples, width, height)
+                effective_upscale_factor_x = float(width)/float(original_width)
+                effective_upscale_factor_y = float(height)/float(original_height)
+                samples = samples.movedim(1, -1)
+                image = samples
+
+                samples = mask
+                samples = samples.unsqueeze(1)
+                samples = comfy.utils.bislerp(samples, width, height)
+                samples = samples.squeeze(1)
+                mask = samples
+
+                x_min = math.floor(x_min * effective_upscale_factor_x)
+                x_max = math.floor(x_max * effective_upscale_factor_x)
+                y_min = math.floor(y_min * effective_upscale_factor_y)
+                y_max = math.floor(y_max * effective_upscale_factor_y)
+
+                # Ensure that context area doesn't go outside of the image
+                x_min = max(x_min, 0)
+                x_max = min(x_max, width - 1)
+                y_min = max(y_min, 0)
+                y_max = min(y_max, height - 1)
+
+            # Pad area (if possible, i.e. if pad is smaller than width/height) to avoid the sampler returning smaller results
+            if padding > 1:
+                x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
+                y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
+
 
         # Crop the image and the mask, sized context area
         cropped_image = image[:, y_min:y_max+1, x_min:x_max+1]
