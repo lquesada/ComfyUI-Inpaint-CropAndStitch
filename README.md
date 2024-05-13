@@ -18,8 +18,9 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 - `fill_holes`: Whether to fully fill any holes (small or large) in the mask, that is, mark fully enclosed areas as part of the mask.
 - `blur_radius_pixels`: Whether to blur the mask, to be used in combination with `grow_mask_pixels`. Some models prefer blurred masks, some don't.
 - `adjust_to_preferred_sizes`: This will try to have width and/or height of the context area match any of the sizes in `preferred_sizes` by growing the context area (not upscaling), e.g. 512, 1024. Some models prefer this.
+- `preferred_sizes`: Comma-separated list of preferred sizes, e.g. "512,1024". Default is 1024 because it fits most of the use cases of this feature.
 - `prefer_square_size`: This will try to have width=height (if possible). Some models prefer this.
-- `internal_upscale_factor`: Upscale the image and mask between the crop and stitch phases. This means the sampling happens only around the context area but at a higher resolution (e.g. 2 for x2), then it is downsampled and merged with the original image. This in practice gets more details from models. If you want to obtain a higher resolution image, please upscale it before cropping/sampling/stitching.
+- `internal_upscale_factor`: Upscale the image and mask between the crop and stitch phases. This means the sampling happens only around the context area but at a higher resolution (e.g. 2 for x2), then it is downsampled and merged with the original image. This in practice gets more details from models. If you want to obtain a higher resolution image, please upscale it before cropping/sampling/stitching. This can also be lower than 1 for the rare cases you need it, such as the original image too large and the model generating double heads.
 
 ## Simple example
 This example inpaints by sampling on a small section of the larger image. It runs ~20x faster than sampling on the whole image.

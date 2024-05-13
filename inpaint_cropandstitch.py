@@ -26,9 +26,9 @@ class InpaintCrop:
                 "fill_holes": ("BOOLEAN", {"default": False}),
                 "blur_radius_pixels": ("FLOAT", {"default": 3.0, "min": 0.0, "max": nodes.MAX_RESOLUTION, "step": 0.1}),
                 "adjust_to_preferred_sizes": ("BOOLEAN", {"default": False}),
-                "preferred_sizes": ("STRING", {"default": "128,256,512,768,1024,1344,1536,2048"}),
+                "preferred_sizes": ("STRING", {"default": "1024"}),
                 "prefer_square_size": ("BOOLEAN", {"default": False}),
-                "internal_upscale_factor": ("FLOAT", {"default": 1.00, "min": 1.0, "max": 100.0, "step": 0.01}),
+                "internal_upscale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}),
            },
            "optional": {
                 "optional_context_mask": ("MASK",),
@@ -111,7 +111,7 @@ class InpaintCrop:
         # Upscale image and masks if requested, they will be downsized at stitch phase
         effective_upscale_factor_x = 1.0
         effective_upscale_factor_y = 1.0
-        if internal_upscale_factor > 1.001:
+        if internal_upscale_factor < 0.999 or internal_upscale_factor > 1.001:
             samples = image            
             samples = samples.movedim(-1, 1)
             width = round(samples.shape[3] * internal_upscale_factor)
@@ -272,7 +272,7 @@ class InpaintStitch:
         inpaint_height = inpainted_image.shape[1]
 
         # Downscale inpainted before stitching if we upscaled it before
-        if stitch['rescale_x'] > 1.001 or stitch['rescale_y'] > 1.001:
+        if stitch['rescale_x'] < 0.999 or stitch['rescale_x'] > 1.001 or stitch['rescale_y'] < 0.999 or stitch['rescale_y'] > 1.001:
             samples = inpainted_image.movedim(-1, 1)
             width = round(float(inpaint_width)/stitch['rescale_x'])
             height = round(float(inpaint_height)/stitch['rescale_y'])
