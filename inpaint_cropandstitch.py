@@ -1,5 +1,4 @@
 import comfy.utils
-import math
 import nodes
 import numpy as np
 import torch
@@ -93,7 +92,7 @@ class InpaintCrop:
                 mask_np = m.numpy()
                 binary_mask = mask_np > 0
                 struct = np.ones((5, 5))
-                closed_mask = binary_closing(binary_mask, structure=struct)
+                closed_mask = binary_closing(binary_mask, structure=struct, border_value=1)
                 filled_mask = binary_fill_holes(closed_mask)
                 output = filled_mask.astype(np.float32) * 255
                 output = torch.from_numpy(output)
@@ -115,8 +114,8 @@ class InpaintCrop:
         if internal_upscale_factor < 0.999 or internal_upscale_factor > 1.001:
             samples = image            
             samples = samples.movedim(-1, 1)
-            width = math.ceil(samples.shape[3] * internal_upscale_factor)
-            height = math.ceil(samples.shape[2] * internal_upscale_factor)
+            width = round(samples.shape[3] * internal_upscale_factor)
+            height = round(samples.shape[2] * internal_upscale_factor)
             samples = comfy.utils.bislerp(samples, width, height)
             effective_upscale_factor_x = float(width)/float(original_width)
             effective_upscale_factor_y = float(height)/float(original_height)
