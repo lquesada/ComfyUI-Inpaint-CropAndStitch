@@ -1,4 +1,5 @@
 import comfy.utils
+import math
 import nodes
 import numpy as np
 import torch
@@ -29,7 +30,7 @@ class InpaintCrop:
                 "preferred_sizes": ("STRING", {"default": "1024"}),
                 "prefer_square_size": ("BOOLEAN", {"default": False}),
                 "internal_upscale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}),
-#                "padding": ("INT", {"default": 32, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
+                "padding": ("INT", {"default": 32, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
            },
            "optional": {
                 "optional_context_mask": ("MASK",),
@@ -60,43 +61,34 @@ class InpaintCrop:
         return new_min, new_max
 
     def apply_padding(self, min_val, max_val, max_boundary, padding):
-        range_size = max_val - min_val + 1
-        if range_size % padding != 0:
-            increment = padding - (range_size % padding)
-            decrement = range_size % padding
-        
-            # Calculate potential new max values for both expanding and contracting
-            expand_new_max_val = max_val + increment
-            contract_new_max_val = max_val - decrement
+        # Calculate the midpoint and the original range size
+        original_range_size = max_val - min_val + 1
+        midpoint = (min_val + max_val) // 2
 
-            # Choose to expand or contract based on boundary conditions
-            if expand_new_max_val < max_boundary and (min_val - (increment // 2) >= 0):
-                # Expand the range and adjust min and max equally
-                new_min_val = min_val - (increment // 2)
-                new_max_val = max_val + (increment // 2)
-                # If increment is odd, add the remaining to max_val
-                if increment % 2 != 0:
-                    new_max_val += 1
-            else:
-                # Contract the range equally
-                new_min_val = min_val + (decrement // 2)
-                new_max_val = max_val - (decrement // 2)
-                # If decrement is odd, subtract the remaining from max_val
-                if decrement % 2 != 0:
-                    new_max_val -= 1
-    
-                # Ensure new_min_val and new_max_val are within bounds
-                if new_min_val < 0:
-                    new_min_val = 0
-                if new_max_val >= max_boundary:
-                    new_max_val = max_boundary - 1
-
-            return new_min_val, new_max_val
+        # Determine the smallest multiple of padding that is >= original_range_size
+        if original_range_size % padding == 0:
+            new_range_size = original_range_size
         else:
-            return min_val, max_val
+            new_range_size = (original_range_size // padding + 1) * padding
+
+        # Calculate the new min and max values centered on the midpoint
+        new_min_val = max(midpoint - new_range_size // 2, 0)
+        new_max_val = new_min_val + new_range_size - 1
+
+        # Ensure the new max doesn't exceed the boundary
+        if new_max_val >= max_boundary:
+            new_max_val = max_boundary - 1
+            new_min_val = max(new_max_val - new_range_size + 1, 0)
+
+        # Ensure the range still ends on a multiple of padding
+        # Adjust if the calculated range isn't feasible within the given constraints
+        if (new_max_val - new_min_val + 1) != new_range_size:
+            new_min_val = max(new_max_val - new_range_size + 1, 0)
+
+        return new_min_val, new_max_val
 
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, grow_mask_pixels, fill_holes, blur_radius_pixels, adjust_to_preferred_sizes, preferred_sizes, prefer_square_size, internal_upscale_factor, optional_context_mask = None): #TODO padding
+    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, grow_mask_pixels, fill_holes, blur_radius_pixels, adjust_to_preferred_sizes, preferred_sizes, prefer_square_size, internal_upscale_factor, padding, optional_context_mask = None):
         original_image = image
         original_mask = mask
         original_width = image.shape[2]
@@ -176,19 +168,6 @@ class InpaintCrop:
         x_min = max(x_min - x_grow // 2, 0)
         x_max = min(x_max + x_grow // 2, width - 1)
 
-        # TODO Pad area (if possible) to avoid the sampler returning smaller results
-        #if padding > 1:
-        #    x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
-        #    y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
-        
-        # Limit to max image size
-        y_min = max(y_min, 0)
-        y_max = min(y_max, height - 1)
-        x_min = max(x_min, 0)
-        x_max = min(x_max, width - 1)
-        y_size = y_max - y_min + 1
-        x_size = x_max - x_min + 1
-
         # Adjust to the smallest preferred size larger than the current size if possible
         if adjust_to_preferred_sizes:
             preferred_sizes_parsed = [int(size) for size in preferred_sizes.split(',')]
@@ -238,17 +217,25 @@ class InpaintCrop:
             samples = samples.squeeze(1)
             mask = samples
 
-            x_min = round(x_min * effective_upscale_factor_x)
-            x_max = round(x_max * effective_upscale_factor_x)
-            y_min = round(y_min * effective_upscale_factor_y)
-            y_max = round(y_max * effective_upscale_factor_y)
+            x_min = math.floor(x_min * effective_upscale_factor_x)
+            x_max = math.ceil(x_max * effective_upscale_factor_x)
+            y_min = math.floor(y_min * effective_upscale_factor_y)
+            y_max = math.ceil(y_max * effective_upscale_factor_y)
 
-            if optional_context_mask is not None:
-                samples = optional_context_mask
-                samples = samples.unsqueeze(1)
-                samples = comfy.utils.bislerp(samples, width, height)
-                samples = samples.squeeze(1)
-                optional_context_mask = samples
+        # Pad area (if possible) to avoid the sampler returning smaller results
+        width = image.shape[2]
+        height = image.shape[1]
+        if padding > 1:
+            x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
+            y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
+        
+        # Ensure that they don't go outside of the image
+        x_min = max(x_min, 0)
+        x_max = min(x_max, width - 1)
+        y_min = max(y_min, 0)
+        y_max = min(y_max, height - 1)
+        x_size = x_max - x_min + 1
+        y_size = y_max - y_min + 1
 
         # Crop the image and the mask, sized context area
         cropped_image = image[:, y_min:y_max+1, x_min:x_max+1]
