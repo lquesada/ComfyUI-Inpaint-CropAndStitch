@@ -1,7 +1,8 @@
 import comfy.utils
-import torch
+import math
 import nodes
 import numpy as np
+import torch
 from scipy.ndimage import gaussian_filter, grey_dilation, binary_fill_holes, binary_closing
 
 class InpaintCrop:
@@ -114,8 +115,8 @@ class InpaintCrop:
         if internal_upscale_factor < 0.999 or internal_upscale_factor > 1.001:
             samples = image            
             samples = samples.movedim(-1, 1)
-            width = round(samples.shape[3] * internal_upscale_factor)
-            height = round(samples.shape[2] * internal_upscale_factor)
+            width = math.ceil(samples.shape[3] * internal_upscale_factor)
+            height = math.ceil(samples.shape[2] * internal_upscale_factor)
             samples = comfy.utils.bislerp(samples, width, height)
             effective_upscale_factor_x = float(width)/float(original_width)
             effective_upscale_factor_y = float(height)/float(original_height)
