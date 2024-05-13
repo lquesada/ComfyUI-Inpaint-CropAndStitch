@@ -145,33 +145,6 @@ class InpaintCrop:
             mask = torch.from_numpy(filtered_mask)
             mask = torch.clamp(mask, 0.0, 1.0)
 
-        # Upscale image and masks if requested, they will be downsized at stitch phase
-        effective_upscale_factor_x = 1.0
-        effective_upscale_factor_y = 1.0
-        if internal_upscale_factor < 0.999 or internal_upscale_factor > 1.001:
-            samples = image            
-            samples = samples.movedim(-1, 1)
-            width = round(samples.shape[3] * internal_upscale_factor)
-            height = round(samples.shape[2] * internal_upscale_factor)
-            samples = comfy.utils.bislerp(samples, width, height)
-            effective_upscale_factor_x = float(width)/float(original_width)
-            effective_upscale_factor_y = float(height)/float(original_height)
-            samples = samples.movedim(1, -1)
-            image = samples
-
-            samples = mask
-            samples = samples.unsqueeze(1)
-            samples = comfy.utils.bislerp(samples, width, height)
-            samples = samples.squeeze(1)
-            mask = samples
-
-            if optional_context_mask is not None:
-                samples = optional_context_mask
-                samples = samples.unsqueeze(1)
-                samples = comfy.utils.bislerp(samples, width, height)
-                samples = samples.squeeze(1)
-                optional_context_mask = samples
-
         # Set context mask if undefined. If present, expand with mask
         if optional_context_mask is None:
             context_mask = mask
@@ -244,6 +217,38 @@ class InpaintCrop:
                 preferred_y_size = height
             x_min, x_max = self.adjust_to_preferred_size(x_min, x_max, width, preferred_x_size)
             y_min, y_max = self.adjust_to_preferred_size(y_min, y_max, height, preferred_y_size)
+
+        # Upscale image and masks if requested, they will be downsized at stitch phase
+        effective_upscale_factor_x = 1.0
+        effective_upscale_factor_y = 1.0
+        if internal_upscale_factor < 0.999 or internal_upscale_factor > 1.001:
+            samples = image            
+            samples = samples.movedim(-1, 1)
+            width = round(samples.shape[3] * internal_upscale_factor)
+            height = round(samples.shape[2] * internal_upscale_factor)
+            samples = comfy.utils.bislerp(samples, width, height)
+            effective_upscale_factor_x = float(width)/float(original_width)
+            effective_upscale_factor_y = float(height)/float(original_height)
+            samples = samples.movedim(1, -1)
+            image = samples
+
+            samples = mask
+            samples = samples.unsqueeze(1)
+            samples = comfy.utils.bislerp(samples, width, height)
+            samples = samples.squeeze(1)
+            mask = samples
+
+            x_min = round(x_min * effective_upscale_factor_x)
+            x_max = round(x_max * effective_upscale_factor_x)
+            y_min = round(y_min * effective_upscale_factor_y)
+            y_max = round(y_max * effective_upscale_factor_y)
+
+            if optional_context_mask is not None:
+                samples = optional_context_mask
+                samples = samples.unsqueeze(1)
+                samples = comfy.utils.bislerp(samples, width, height)
+                samples = samples.squeeze(1)
+                optional_context_mask = samples
 
         # Crop the image and the mask, sized context area
         cropped_image = image[:, y_min:y_max+1, x_min:x_max+1]
