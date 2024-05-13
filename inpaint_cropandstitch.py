@@ -24,7 +24,7 @@ class InpaintCrop:
                 "context_expand_factor": ("FLOAT", {"default": 1.01, "min": 1.0, "max": 100.0, "step": 0.01}),
                 "invert_mask": ("BOOLEAN", {"default": False}),
                 "grow_mask_pixels": ("INT", {"default": 12.0, "min": 0.0, "max": 1000, "step": 1}),
-                "fill_holes": ("BOOLEAN", {"default": False}),
+                "fill_holes": ("BOOLEAN", {"default": True}),
                 "blur_radius_pixels": ("FLOAT", {"default": 3.0, "min": 0.0, "max": nodes.MAX_RESOLUTION, "step": 0.1}),
                 "adjust_to_preferred_sizes": ("BOOLEAN", {"default": False}),
                 "preferred_sizes": ("STRING", {"default": "1024"}),
