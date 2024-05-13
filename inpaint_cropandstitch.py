@@ -62,20 +62,34 @@ class InpaintCrop:
     def apply_padding(self, min_val, max_val, max_boundary, padding):
         range_size = max_val - min_val + 1
         if range_size % padding != 0:
-            # Calculate the required increment to make the range a multiple of the padding
             increment = padding - (range_size % padding)
+            decrement = range_size % padding
+        
+            # Calculate potential new max values for both expanding and contracting
+            expand_new_max_val = max_val + increment
+            contract_new_max_val = max_val - decrement
 
-            # Adjust the range to include the increment
-            new_max_val = max_val + increment
-
-            # Check if the new maximum exceeds the boundary, and adjust the minimum accordingly
-            if new_max_val >= max_boundary:
-                new_max_val = max_boundary - 1
-                new_min_val = new_max_val - (padding * ((new_max_val - min_val + 1) // padding)) + 1
-                # Ensure new_min_val does not go below 0
-                new_min_val = max(new_min_val, 0)
+            # Choose to expand or contract based on boundary conditions
+            if expand_new_max_val < max_boundary and (min_val - (increment // 2) >= 0):
+                # Expand the range and adjust min and max equally
+                new_min_val = min_val - (increment // 2)
+                new_max_val = max_val + (increment // 2)
+                # If increment is odd, add the remaining to max_val
+                if increment % 2 != 0:
+                    new_max_val += 1
             else:
-                new_min_val = min_val
+                # Contract the range equally
+                new_min_val = min_val + (decrement // 2)
+                new_max_val = max_val - (decrement // 2)
+                # If decrement is odd, subtract the remaining from max_val
+                if decrement % 2 != 0:
+                    new_max_val -= 1
+    
+                # Ensure new_min_val and new_max_val are within bounds
+                if new_min_val < 0:
+                    new_min_val = 0
+                if new_max_val >= max_boundary:
+                    new_max_val = max_boundary - 1
 
             return new_min_val, new_max_val
         else:
@@ -191,10 +205,8 @@ class InpaintCrop:
 
         # Pad area (if possible) to avoid the sampler returning smaller results
         if padding > 1:
-            print(x_min, x_max, y_min, y_max, padding)
             x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
             y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
-            print(x_min, x_max, y_min, y_max)
         
         # Limit to max image size
         y_min = max(y_min, 0)
