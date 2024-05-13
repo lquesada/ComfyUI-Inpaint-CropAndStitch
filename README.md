@@ -64,8 +64,9 @@ If you want to inpaint with SDXL, use forced size = 1024.
 # Changelog
 ## Upcoming!
 - Some JavaScript to hide unused fields depending on the selected mode.
+- Faster upscaling.
 ## 2024-05-13
-- Make adjust_to_preferred_sizes scale the section rather than grow the context area to fit preferred_sizes, to be used to e.g. force 1024x1024 for inpainting.
+- Switched from adjust_to_preferred_sizes to modes: free size and forced size. Forced scales the section rather than growing the context area to fit preferred_sizes, to be used to e.g. force 1024x1024 for inpainting.
 - Enable internal_upscale_factor to be lower than 1 (that is, downscale), which can be used to avoid the double head issue in some models.
 - Added padding on the croppedp image to avoid artifacts when the cropped image is not multiple of (default) 32
 ## 2024-05-12
