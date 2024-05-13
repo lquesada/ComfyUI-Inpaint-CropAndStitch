@@ -29,7 +29,7 @@ class InpaintCrop:
                 "preferred_sizes": ("STRING", {"default": "1024"}),
                 "prefer_square_size": ("BOOLEAN", {"default": False}),
                 "internal_upscale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}),
-                "padding": ("INT", {"default": 32, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
+#                "padding": ("INT", {"default": 32, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
            },
            "optional": {
                 "optional_context_mask": ("MASK",),
@@ -96,7 +96,7 @@ class InpaintCrop:
             return min_val, max_val
 
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, grow_mask_pixels, fill_holes, blur_radius_pixels, adjust_to_preferred_sizes, preferred_sizes, prefer_square_size, internal_upscale_factor, padding, optional_context_mask = None):
+    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, grow_mask_pixels, fill_holes, blur_radius_pixels, adjust_to_preferred_sizes, preferred_sizes, prefer_square_size, internal_upscale_factor, optional_context_mask = None): #TODO padding
         original_image = image
         original_mask = mask
         original_width = image.shape[2]
@@ -176,10 +176,10 @@ class InpaintCrop:
         x_min = max(x_min - x_grow // 2, 0)
         x_max = min(x_max + x_grow // 2, width - 1)
 
-        # Pad area (if possible) to avoid the sampler returning smaller results
-        if padding > 1:
-            x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
-            y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
+        # TODO Pad area (if possible) to avoid the sampler returning smaller results
+        #if padding > 1:
+        #    x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
+        #    y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
         
         # Limit to max image size
         y_min = max(y_min, 0)
