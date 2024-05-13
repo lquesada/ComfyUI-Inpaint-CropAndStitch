@@ -41,6 +41,17 @@ Download the following example workflow from [here](inpaint-cropandstitch_exampl
 
 Install via ComfyUI-Manager or go to the custom_nodes/ directory and run ```$ git clone https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git```
 
+# Changelog
+## Upcoming!
+- Make adjust_to_preferred_sizes scale the section rather than grow the context area to fit preferred_sizes, to be used to e.g. force 1024x1024 for inpainting.
+## 2024-05-13
+- Enable internal_upscale_factor to be lower than 1 (that is, downscale), which can be used to avoid the double head issue in some models.
+- Added padding on the croppedp image to avoid artifacts when the cropped image is not multiple of (default) 32
+## 2024-05-12
+- Add internal_upscale_factor to upscale the image before sampling and then downsizes to stitch it back.
+## 2024-05-11
+- Initial commit.
+
 # Acknowledgements
 
 This repository uses some code from comfy_extras (https://github.com/comfyanonymous/ComfyUI) and from KJNodes (https://github.com/kijai/ComfyUI-KJNodes), both licensed under GNU GENERAL PUBLIC LICENSE Version 3. 
