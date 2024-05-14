@@ -51,6 +51,7 @@ class InpaintCrop:
 
     RETURN_TYPES = ("STITCH", "IMAGE", "MASK")
     RETURN_NAMES = ("stitch", "cropped_image", "cropped_mask")
+    OUTPUT_IS_LIST = (True, True, True)
 
     FUNCTION = "inpaint_crop"
 
@@ -115,8 +116,37 @@ class InpaintCrop:
 
         return new_min_val, new_max_val
 
-    # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
     def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, rescale_algorithm, force_size, rescale_factor, padding, optional_context_mask=None):
+        assert image.shape[0] == mask.shape[0], "Batch size of images and masks must be the same"
+        if optional_context_mask is not None:
+            assert optional_context_mask.shape[0] == image.shape[0], "Batch size of optional_context_masks must be the same as images or None"
+
+        results_stitch = []
+        results_image = []
+        results_mask = []
+
+        batch_size = image.shape[0]
+        for b in range(batch_size):
+            one_image = image[b].unsqueeze(0)
+            one_mask = mask[b].unsqueeze(0)
+            one_optional_context_mask = None
+            if optional_context_mask is not None:
+                one_optional_context_mask = optional_context_mask[b].unsqueeze(0)
+
+            stitch, cropped_image, cropped_mask = self.inpaint_crop_single_image(
+                one_image, one_mask, context_expand_pixels, context_expand_factor, invert_mask,
+                fill_mask_holes, mode, rescale_algorithm, force_size, rescale_factor,
+                padding, one_optional_context_mask
+            )
+
+            results_stitch.append(stitch)
+            results_image.append(cropped_image)
+            results_mask.append(cropped_mask)
+
+        return results_stitch, results_image, results_mask
+       
+    # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
+    def inpaint_crop_single_image(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, rescale_algorithm, force_size, rescale_factor, padding, optional_context_mask=None):
         original_image = image
         original_mask = mask
         original_width = image.shape[2]

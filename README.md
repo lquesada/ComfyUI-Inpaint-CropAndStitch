@@ -63,9 +63,9 @@ If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
 ## Upcoming!
-- Top priority: Batch support.
 - Nice to have: Some JavaScript to hide unused fields depending on the selected mode.
 ## 2024-05-14
+- Batch support.
 - Enabled selecting rescaling algorithm and made bicubic the default for crop, which significantly speeds up the process.
 ## 2024-05-13
 - Switched from adjust_to_preferred_sizes to modes: free size and forced size. Forced scales the section rather than growing the context area to fit preferred_sizes, to be used to e.g. force 1024x1024 for inpainting.
