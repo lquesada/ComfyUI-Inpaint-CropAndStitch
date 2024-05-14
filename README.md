@@ -63,7 +63,8 @@ If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
 ## Upcoming!
-- Some JavaScript to hide unused fields depending on the selected mode.
+- Top priority: Batch support.
+- Nice to have: Some JavaScript to hide unused fields depending on the selected mode.
 ## 2024-05-14
 - Enabled selecting rescaling algorithm and made bicubic the default for crop, which significantly speeds up the process.
 ## 2024-05-13
