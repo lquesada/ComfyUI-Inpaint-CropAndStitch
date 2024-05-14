@@ -5,6 +5,17 @@ import numpy as np
 import torch
 from scipy.ndimage import gaussian_filter, grey_dilation, binary_fill_holes, binary_closing
 
+def rescale(samples, width, height, algorithm):
+    if algorithm == "nearest":
+        return torch.nn.functional.interpolate(samples, size=(height, width), mode="nearest")
+    elif algorithm == "bilinear":
+        return torch.nn.functional.interpolate(samples, size=(height, width), mode="bilinear")
+    elif algorithm == "bicubic":
+        return torch.nn.functional.interpolate(samples, size=(height, width), mode="bicubic")
+    elif algorithm == "bislerp":
+        return comfy.utils.bislerp(samples, width, height)
+    return samples
+
 class InpaintCrop:
     """
     ComfyUI-InpaintCropAndStitch
@@ -25,6 +36,7 @@ class InpaintCrop:
                 "context_expand_factor": ("FLOAT", {"default": 1.01, "min": 1.0, "max": 100.0, "step": 0.01}),
                 "invert_mask": ("BOOLEAN", {"default": False}),
                 "fill_mask_holes": ("BOOLEAN", {"default": True}),
+                "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp"], {"default": "bicubic"}),
                 "mode": (["free size", "forced size"], {"default": "free size"}),
                 "force_size": ([512, 768, 1024, 1344, 2048, 4096, 8192], {"default": 1024}),
                 "rescale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}),
@@ -42,7 +54,7 @@ class InpaintCrop:
 
     FUNCTION = "inpaint_crop"
 
-    def adjust_to_square(self, x_min, x_max, y_min, y_max, width, height, target_size = None):
+    def adjust_to_square(self, x_min, x_max, y_min, y_max, width, height, target_size=None):
         if target_size is None:
             x_size = x_max - x_min + 1
             y_size = y_max - y_min + 1
@@ -104,7 +116,7 @@ class InpaintCrop:
         return new_min_val, new_max_val
 
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, force_size, rescale_factor, padding, optional_context_mask = None):
+    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, rescale_algorithm, force_size, rescale_factor, padding, optional_context_mask=None):
         original_image = image
         original_mask = mask
         original_width = image.shape[2]
@@ -191,7 +203,7 @@ class InpaintCrop:
 
                 width = math.floor(samples.shape[3] * upscale_factor)
                 height = math.floor(samples.shape[2] * upscale_factor)
-                samples = comfy.utils.bislerp(samples, width, height)
+                samples = rescale(samples, width, height, rescale_algorithm)
                 effective_upscale_factor_x = float(width)/float(original_width)
                 effective_upscale_factor_y = float(height)/float(original_height)
                 samples = samples.movedim(1, -1)
@@ -199,7 +211,7 @@ class InpaintCrop:
 
                 samples = mask
                 samples = samples.unsqueeze(1)
-                samples = comfy.utils.bislerp(samples, width, height)
+                samples = rescale(samples, width, height, rescale_algorithm)
                 samples = samples.squeeze(1)
                 mask = samples
 
@@ -219,7 +231,7 @@ class InpaintCrop:
 
                 width = math.floor(samples.shape[3] * rescale_factor)
                 height = math.floor(samples.shape[2] * rescale_factor)
-                samples = comfy.utils.bislerp(samples, width, height)
+                samples = rescale(samples, width, height, rescale_algorithm)
                 effective_upscale_factor_x = float(width)/float(original_width)
                 effective_upscale_factor_y = float(height)/float(original_height)
                 samples = samples.movedim(1, -1)
@@ -227,7 +239,7 @@ class InpaintCrop:
 
                 samples = mask
                 samples = samples.unsqueeze(1)
-                samples = comfy.utils.bislerp(samples, width, height)
+                samples = rescale(samples, width, height, rescale_algorithm)
                 samples = samples.squeeze(1)
                 mask = samples
 
@@ -269,6 +281,7 @@ class InpaintStitch:
             "required": {
                 "stitch": ("STITCH",),
                 "inpainted_image": ("IMAGE",),
+                "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp"], {"default": "bislerp"}),
             }
         }
 
@@ -280,7 +293,7 @@ class InpaintStitch:
     FUNCTION = "inpaint_stitch"
 
     # This function is from comfy_extras: https://github.com/comfyanonymous/ComfyUI
-    def composite(self, destination, source, x, y, mask = None, multiplier = 8, resize_source = False):
+    def composite(self, destination, source, x, y, mask=None, multiplier=8, resize_source=False):
         source = source.to(destination.device)
         if resize_source:
             source = torch.nn.functional.interpolate(source, size=(destination.shape[2], destination.shape[3]), mode="bilinear")
@@ -314,7 +327,7 @@ class InpaintStitch:
         destination[:, :, top:bottom, left:right] = source_portion + destination_portion
         return destination
 
-    def inpaint_stitch(self, stitch, inpainted_image):
+    def inpaint_stitch(self, stitch, inpainted_image, rescale_algorithm):
         original_image = stitch['original_image']
         cropped_mask = stitch['cropped_mask']
         x = stitch['x']
@@ -331,12 +344,12 @@ class InpaintStitch:
             height = round(float(inpaint_height)/stitch['rescale_y'])
             x = round(float(x)/stitch['rescale_x'])
             y = round(float(y)/stitch['rescale_y'])
-            samples = comfy.utils.bislerp(samples, width, height)
+            samples = rescale(samples, width, height, rescale_algorithm)
             inpainted_image = samples.movedim(1, -1)
             
             samples = cropped_mask.movedim(-1, 1)
             samples = samples.unsqueeze(0)
-            samples = comfy.utils.bislerp(samples, width, height)
+            samples = rescale(samples, width, height, rescale_algorithm)
             samples = samples.squeeze(0)
             cropped_mask = samples.movedim(1, -1)
 

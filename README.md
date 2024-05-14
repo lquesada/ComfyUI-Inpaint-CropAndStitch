@@ -15,7 +15,7 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 - `context_expand_factor`: how much to grow the context area (i.e. the area for the sampling) around the original mask, as a factor, e.g. 1.1 is grow 10% of the size of the mask.
 - `invert_mask`: Whether to fully invert the mask, that is, only keep what was marked, instead of removing what was marked.
 - `fill_mask_holes`: Whether to fully fill any holes (small or large) in the mask, that is, mark fully enclosed areas as part of the mask.
-- `blur_radius_pixels`: Whether to blur the mask, to be used in combination with `grow_mask_pixels`. Some models prefer blurred masks, some don't.
+- `rescale_algorithm`: Rescale algorithm to use. bislerp is for super high quality but very slow, recommended for stich. bicubic is high quality and faster, recommended for crop.
 - `mode`: Free size or Forced size.
     - Free size uses `internal_rescale_factor` to optionally rescale the content before sampling and eventually scale back before stitching, and `padding` to align to standard sizes.
     - Forced size uses `force_size` and upscales the content to take that size before sampling, then downscales before stitching back. Use forced size e.g. for SDXL.
@@ -64,7 +64,8 @@ If you want to inpaint with SDXL, use forced size = 1024.
 # Changelog
 ## Upcoming!
 - Some JavaScript to hide unused fields depending on the selected mode.
-- Faster upscaling.
+## 2024-05-14
+- Enabled selecting rescaling algorithm and made bicubic the default for crop, which significantly speeds up the process.
 ## 2024-05-13
 - Switched from adjust_to_preferred_sizes to modes: free size and forced size. Forced scales the section rather than growing the context area to fit preferred_sizes, to be used to e.g. force 1024x1024 for inpainting.
 - Enable internal_upscale_factor to be lower than 1 (that is, downscale), which can be used to avoid the double head issue in some models.
