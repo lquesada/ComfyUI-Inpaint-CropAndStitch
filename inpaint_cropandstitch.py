@@ -366,6 +366,7 @@ class InpaintStitch:
         results = []
 
         batch_size = inpainted_image.shape[0]
+        assert len(stitch['x']) == batch_size, "Stitch size doesn't match image batch size"
         for b in range(batch_size):
             one_image = inpainted_image[b]
             one_stitch = {}
