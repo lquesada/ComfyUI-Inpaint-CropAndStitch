@@ -78,7 +78,7 @@ If you want to inpaint with SDXL, use forced size = 1024.
 
 # Acknowledgements
 
-This repository uses some code from comfy_extras (https://github.com/comfyanonymous/ComfyUI) and from KJNodes (https://github.com/kijai/ComfyUI-KJNodes), both licensed under GNU GENERAL PUBLIC LICENSE Version 3. 
+This repository uses some code from comfy_extras (https://github.com/comfyanonymous/ComfyUI), KJNodes (https://github.com/kijai/ComfyUI-KJNodes), and Efficiency Nodes (https://github.com/LucianoCirino/efficiency-nodes-comfyui), all of them licensed under GNU GENERAL PUBLIC LICENSE Version 3. 
 
 # License
 GNU GENERAL PUBLIC LICENSE Version 3, see [LICENSE](LICENSE)

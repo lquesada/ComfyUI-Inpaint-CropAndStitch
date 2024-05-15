@@ -1,6 +1,8 @@
 from .inpaint_cropandstitch import InpaintCrop
 from .inpaint_cropandstitch import InpaintStitch
 
+WEB_DIRECTORY = "js"
+
 NODE_CLASS_MAPPINGS = {
     "InpaintCrop": InpaintCrop,
     "InpaintStitch": InpaintStitch
