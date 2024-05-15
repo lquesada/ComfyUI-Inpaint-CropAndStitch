@@ -55,7 +55,9 @@ Install via ComfyUI-Manager or go to the custom_nodes/ directory and run ```$ gi
 ## Best Practices
 Use an inpainting model e.g. lazymixRealAmateur_v40Inpainting.
 
-Use VAE Encode (for Inpainting) with grow_mask_by 12.
+Use "VAE Encode (for Inpainting)" with grow_mask_by 12, this feathers the masks a bit.
+
+You may also use Set Latent Noise Mask, but then you may use KJNodes if you want to blur or feather the mask: https://github.com/kijai/ComfyUI-KJNodes/tree/main
 
 If you want to inpaint fast with SD 1.5, use free size with padding 32. You may increase rescale_factor to get more details.
 
@@ -63,7 +65,8 @@ If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
 ## Upcoming!
-- Nice to have: Some JavaScript to hide unused fields depending on the selected mode.
+## 2024-05-15
+- Depending on the selected mode ("free size" or "forced size") some fields are hidden.
 ## 2024-05-14
 - Batch support.
 - Enabled selecting rescaling algorithm and made bicubic the default for crop, which significantly speeds up the process.
