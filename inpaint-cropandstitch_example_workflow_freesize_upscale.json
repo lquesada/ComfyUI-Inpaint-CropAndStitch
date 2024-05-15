@@ -1,6 +1,6 @@
 {
-  "last_node_id": 8,
-  "last_link_id": 19,
+  "last_node_id": 9,
+  "last_link_id": 20,
   "nodes": [
     {
       "id": 2,
@@ -10,8 +10,8 @@
         170
       ],
       "size": {
-        "0": 180,
-        "1": 50
+        "0": 210,
+        "1": 78
       },
       "flags": {},
       "order": 5,
@@ -41,7 +41,10 @@
       ],
       "properties": {
         "Node name for S&R": "InpaintStitch"
-      }
+      },
+      "widgets_values": [
+        "bislerp"
+      ]
     },
     {
       "id": 7,
@@ -121,12 +124,12 @@
       "id": 3,
       "type": "LoadImage",
       "pos": [
-        60,
-        270
+        290,
+        230
       ],
       "size": {
-        "0": 630,
-        "1": 990
+        "0": 390,
+        "1": 790
       },
       "flags": {},
       "order": 0,
@@ -155,7 +158,7 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "clipspace/clipspace-mask-41523.19999998808.png [input]",
+        "clipspace/clipspace-mask-1674328.799999997.png [input]",
         "image"
       ]
     },
@@ -251,7 +254,7 @@
       },
       "widgets_values": [
         "enable",
-        1036058331398113,
+        1036058331398116,
         null,
         20,
         3,
@@ -361,7 +364,7 @@
         "None",
         1,
         1,
-        "a banana",
+        "banana on blue background",
         "",
         "none",
         "comfy",
@@ -441,6 +444,7 @@
         1.01,
         false,
         2,
+        "bilinear",
         "free size",
         1024,
         2,
@@ -558,10 +562,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7513148009015781,
+      "scale": 0.6209213230591555,
       "offset": [
-        70.38142752900254,
-        49.87490182343542
+        -168.11471521367685,
+        387.47651373739615
       ]
     }
   },

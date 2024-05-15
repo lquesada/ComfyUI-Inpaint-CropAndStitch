@@ -10,8 +10,8 @@
         170
       ],
       "size": {
-        "0": 180,
-        "1": 50
+        "0": 210,
+        "1": 78
       },
       "flags": {},
       "order": 6,
@@ -41,7 +41,10 @@
       ],
       "properties": {
         "Node name for S&R": "InpaintStitch"
-      }
+      },
+      "widgets_values": [
+        "bislerp"
+      ]
     },
     {
       "id": 7,
@@ -115,162 +118,6 @@
       },
       "widgets_values": [
         12
-      ]
-    },
-    {
-      "id": 3,
-      "type": "LoadImage",
-      "pos": [
-        320,
-        220
-      ],
-      "size": [
-        300,
-        500
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            1
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            2
-          ],
-          "shape": 3,
-          "slot_index": 1
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "clipspace/clipspace-mask-274269.09999999404.png [input]",
-        "image"
-      ]
-    },
-    {
-      "id": 1,
-      "type": "InpaintCrop",
-      "pos": [
-        790,
-        170
-      ],
-      "size": {
-        "0": 350,
-        "1": 314
-      },
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 1
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 2
-        },
-        {
-          "name": "optional_context_mask",
-          "type": "MASK",
-          "link": 20
-        }
-      ],
-      "outputs": [
-        {
-          "name": "stitch",
-          "type": "STITCH",
-          "links": [
-            8
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "cropped_image",
-          "type": "IMAGE",
-          "links": [
-            9
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "cropped_mask",
-          "type": "MASK",
-          "links": [
-            13
-          ],
-          "shape": 3,
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintCrop"
-      },
-      "widgets_values": [
-        10,
-        1.01,
-        false,
-        2,
-        "free size",
-        1024,
-        1,
-        32
-      ]
-    },
-    {
-      "id": 9,
-      "type": "LoadImage",
-      "pos": [
-        320,
-        780
-      ],
-      "size": {
-        "0": 300,
-        "1": 500
-      },
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            20
-          ],
-          "shape": 3,
-          "slot_index": 1
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "clipspace/clipspace-mask-178946.90000000596.png [input]",
-        "image"
       ]
     },
     {
@@ -393,7 +240,7 @@
         "1": 462
       },
       "flags": {},
-      "order": 2,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
@@ -486,6 +333,163 @@
       "color": "#332233",
       "bgcolor": "#553355",
       "shape": 1
+    },
+    {
+      "id": 1,
+      "type": "InpaintCrop",
+      "pos": [
+        790,
+        170
+      ],
+      "size": {
+        "0": 350,
+        "1": 314
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 2
+        },
+        {
+          "name": "optional_context_mask",
+          "type": "MASK",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "stitch",
+          "type": "STITCH",
+          "links": [
+            8
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "cropped_image",
+          "type": "IMAGE",
+          "links": [
+            9
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "cropped_mask",
+          "type": "MASK",
+          "links": [
+            13
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InpaintCrop"
+      },
+      "widgets_values": [
+        10,
+        1.01,
+        false,
+        2,
+        "bilinear",
+        "free size",
+        1024,
+        1,
+        32
+      ]
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        320,
+        220
+      ],
+      "size": {
+        "0": 300,
+        "1": 500
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            2
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "clipspace/clipspace-mask-1674328.799999997.png [input]",
+        "image"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "LoadImage",
+      "pos": [
+        320,
+        780
+      ],
+      "size": {
+        "0": 300,
+        "1": 500
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            20
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "clipspace/clipspace-mask-1681802.8999999985.png [input]",
+        "image"
+      ]
     }
   ],
   "links": [
@@ -606,10 +610,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7513148009015782,
+      "scale": 0.5644739300537777,
       "offset": [
-        73.3218161520492,
-        79.35282891694116
+        55.93211548632394,
+        418.3514545373961
       ]
     }
   },

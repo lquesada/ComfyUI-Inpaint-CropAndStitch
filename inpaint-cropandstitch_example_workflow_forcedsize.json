@@ -1,6 +1,6 @@
 {
-  "last_node_id": 8,
-  "last_link_id": 19,
+  "last_node_id": 9,
+  "last_link_id": 20,
   "nodes": [
     {
       "id": 2,
@@ -10,8 +10,8 @@
         170
       ],
       "size": {
-        "0": 180,
-        "1": 50
+        "0": 210,
+        "1": 78
       },
       "flags": {},
       "order": 5,
@@ -41,7 +41,10 @@
       ],
       "properties": {
         "Node name for S&R": "InpaintStitch"
-      }
+      },
+      "widgets_values": [
+        "bislerp"
+      ]
     },
     {
       "id": 7,
@@ -115,6 +118,231 @@
       },
       "widgets_values": [
         12
+      ]
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        290,
+        230
+      ],
+      "size": {
+        "0": 390,
+        "1": 790
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            2
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "clipspace/clipspace-mask-1674328.799999997.png [input]",
+        "image"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Efficient Loader",
+      "pos": [
+        840,
+        600
+      ],
+      "size": {
+        "0": 400,
+        "1": 462
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "type": "LORA_STACK",
+          "link": null
+        },
+        {
+          "name": "cnet_stack",
+          "type": "CONTROL_NET_STACK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            14
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": [
+            15
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": [
+            16
+          ],
+          "shape": 3,
+          "slot_index": 2
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3,
+          "slot_index": 3
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            7,
+            18
+          ],
+          "shape": 3,
+          "slot_index": 4
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "DEPENDENCIES",
+          "type": "DEPENDENCIES",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Efficient Loader"
+      },
+      "widgets_values": [
+        "sd1.5-inpainting/lazymixRealAmateur_v40Inpainting.safetensors",
+        "Baked VAE",
+        -1,
+        "None",
+        1,
+        1,
+        "banana on blue background",
+        "",
+        "none",
+        "comfy",
+        512,
+        512,
+        1
+      ],
+      "color": "#332233",
+      "bgcolor": "#553355",
+      "shape": 1
+    },
+    {
+      "id": 1,
+      "type": "InpaintCrop",
+      "pos": [
+        790,
+        170
+      ],
+      "size": {
+        "0": 350,
+        "1": 314
+      },
+      "flags": {
+        "collapsed": false
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 2
+        },
+        {
+          "name": "optional_context_mask",
+          "type": "MASK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "stitch",
+          "type": "STITCH",
+          "links": [
+            8
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "cropped_image",
+          "type": "IMAGE",
+          "links": [
+            9
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "cropped_mask",
+          "type": "MASK",
+          "links": [
+            13
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InpaintCrop"
+      },
+      "widgets_values": [
+        10,
+        1.01,
+        false,
+        2,
+        "bilinear",
+        "forced size",
+        1024,
+        2,
+        32
       ]
     },
     {
@@ -209,7 +437,7 @@
       },
       "widgets_values": [
         "enable",
-        1036058331398113,
+        1036058331398117,
         null,
         20,
         3,
@@ -224,228 +452,6 @@
       "color": "#223333",
       "bgcolor": "#335555",
       "shape": 1
-    },
-    {
-      "id": 4,
-      "type": "Efficient Loader",
-      "pos": [
-        840,
-        600
-      ],
-      "size": {
-        "0": 400,
-        "1": 462
-      },
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "lora_stack",
-          "type": "LORA_STACK",
-          "link": null
-        },
-        {
-          "name": "cnet_stack",
-          "type": "CONTROL_NET_STACK",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            14
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "CONDITIONING+",
-          "type": "CONDITIONING",
-          "links": [
-            15
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "CONDITIONING-",
-          "type": "CONDITIONING",
-          "links": [
-            16
-          ],
-          "shape": 3,
-          "slot_index": 2
-        },
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": null,
-          "shape": 3,
-          "slot_index": 3
-        },
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": [
-            7,
-            18
-          ],
-          "shape": 3,
-          "slot_index": 4
-        },
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": null,
-          "shape": 3
-        },
-        {
-          "name": "DEPENDENCIES",
-          "type": "DEPENDENCIES",
-          "links": null,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "Efficient Loader"
-      },
-      "widgets_values": [
-        "sd1.5-inpainting/lazymixRealAmateur_v40Inpainting.safetensors",
-        "Baked VAE",
-        -1,
-        "None",
-        1,
-        1,
-        "a banana",
-        "",
-        "none",
-        "comfy",
-        512,
-        512,
-        1
-      ],
-      "color": "#332233",
-      "bgcolor": "#553355",
-      "shape": 1
-    },
-    {
-      "id": 3,
-      "type": "LoadImage",
-      "pos": [
-        60,
-        270
-      ],
-      "size": {
-        "0": 630,
-        "1": 990
-      },
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            1
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            2
-          ],
-          "shape": 3,
-          "slot_index": 1
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "clipspace/clipspace-mask-41523.19999998808.png [input]",
-        "image"
-      ]
-    },
-    {
-      "id": 1,
-      "type": "InpaintCrop",
-      "pos": [
-        790,
-        170
-      ],
-      "size": {
-        "0": 350,
-        "1": 314
-      },
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 1
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 2
-        },
-        {
-          "name": "optional_context_mask",
-          "type": "MASK",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "stitch",
-          "type": "STITCH",
-          "links": [
-            8
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "cropped_image",
-          "type": "IMAGE",
-          "links": [
-            9
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "cropped_mask",
-          "type": "MASK",
-          "links": [
-            13
-          ],
-          "shape": 3,
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintCrop"
-      },
-      "widgets_values": [
-        10,
-        1.01,
-        false,
-        2,
-        "forced size",
-        512,
-        2,
-        32
-      ]
     }
   ],
   "links": [
@@ -558,10 +564,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7513148009015782,
+      "scale": 0.6209213230591555,
       "offset": [
-        73.3218161520492,
-        79.35282891694116
+        -461.53773360234845,
+        106.80833576864623
       ]
     }
   },

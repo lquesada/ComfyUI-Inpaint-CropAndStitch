@@ -51,7 +51,6 @@ class InpaintCrop:
 
     RETURN_TYPES = ("STITCH", "IMAGE", "MASK")
     RETURN_NAMES = ("stitch", "cropped_image", "cropped_mask")
-    OUTPUT_IS_LIST = (True, True, True)
 
     FUNCTION = "inpaint_crop"
 
@@ -121,7 +120,7 @@ class InpaintCrop:
         if optional_context_mask is not None:
             assert optional_context_mask.shape[0] == image.shape[0], "Batch size of optional_context_masks must be the same as images or None"
 
-        results_stitch = []
+        result_stitch = {'x': [], 'y': [], 'original_image': [], 'cropped_mask': [], 'rescale_x': [], 'rescale_y': []}
         results_image = []
         results_mask = []
 
@@ -139,11 +138,17 @@ class InpaintCrop:
                 padding, one_optional_context_mask
             )
 
-            results_stitch.append(stitch)
+            for key in result_stitch:
+                result_stitch[key].append(stitch[key])
+            cropped_image = cropped_image.squeeze(0)
             results_image.append(cropped_image)
+            cropped_mask = cropped_mask.squeeze(0)
             results_mask.append(cropped_mask)
 
-        return results_stitch, results_image, results_mask
+        result_image = torch.stack(results_image, dim=0)
+        result_mask = torch.stack(results_mask, dim=0)
+
+        return result_stitch, result_image, result_mask
        
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
     def inpaint_crop_single_image(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, rescale_algorithm, force_size, rescale_factor, padding, optional_context_mask=None):
@@ -358,6 +363,26 @@ class InpaintStitch:
         return destination
 
     def inpaint_stitch(self, stitch, inpainted_image, rescale_algorithm):
+        results = []
+
+        batch_size = inpainted_image.shape[0]
+        for b in range(batch_size):
+            one_image = inpainted_image[b]
+            one_stitch = {}
+            for key in stitch:
+                # Extract the value at the specified index and assign it to the single_stitch dictionary
+                one_stitch[key] = stitch[key][b]
+            one_image = one_image.unsqueeze(0)
+            one_image, = self.inpaint_stitch_single_image(one_stitch, one_image, rescale_algorithm)
+            one_image = one_image.squeeze(0)
+            results.append(one_image)
+
+        # Stack the results to form a batch
+        result_batch = torch.stack(results, dim=0)
+
+        return (result_batch,)
+
+    def inpaint_stitch_single_image(self, stitch, inpainted_image, rescale_algorithm):
         original_image = stitch['original_image']
         cropped_mask = stitch['cropped_mask']
         x = stitch['x']
