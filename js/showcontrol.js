@@ -3,7 +3,7 @@ import { app } from "../../scripts/app.js";
 // Some fragments of this code are from https://github.com/LucianoCirino/efficiency-nodes-comfyui
 
 function inpaintCropHandler(node) {
-    if (node.type != "InpaintCrop") {
+    if (node.comfyClass != "InpaintCrop") {
         return;
     }
     toggleWidget(node, findWidgetByName(node, "force_size"));
@@ -56,13 +56,12 @@ function toggleWidget(node, widget, show = false, suffix = "") {
 app.registerExtension({
     name: "inpaint-cropandstitch.showcontrol",
     nodeCreated(node) {
+        inpaintCropHandler(node);
         for (const w of node.widgets || []) {
             let widgetValue = w.value;
 
             // Store the original descriptor if it exists 
             let originalDescriptor = Object.getOwnPropertyDescriptor(w, 'value');
-
-            inpaintCropHandler(node);
 
             Object.defineProperty(w, 'value', {
                 get() {
