@@ -70,7 +70,6 @@ If you want to inpaint fast with SD 1.5, use free size with padding 32. You may 
 If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
-## Upcoming!
 ## 2024-05-15
 - Depending on the selected mode ("free size" or "forced size") some fields are hidden.
 ## 2024-05-14
