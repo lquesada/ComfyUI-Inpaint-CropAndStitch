@@ -10,6 +10,12 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 
 "✂️  Inpaint Stitch" is a node that stitches the inpainted image back into the original image without altering unmasked areas.
 
+# Video Tutorial
+
+[![Video Tutorial](https://img.youtube.com/vi/u5cNrumkz2w/0.jpg)](https://www.youtube.com/watch?v=u5cNrumkz2w)
+
+[(click to open in YouTube)](https://www.youtube.com/watch?v=u5cNrumkz2w)
+
 ## Parameters
 - `context_expand_pixels`: how much to grow the context area (i.e. the area for the sampling) around the original mask, in pixels. This provides more context for the sampling.
 - `context_expand_factor`: how much to grow the context area (i.e. the area for the sampling) around the original mask, as a factor, e.g. 1.1 is grow 10% of the size of the mask.
