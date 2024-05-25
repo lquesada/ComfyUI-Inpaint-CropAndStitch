@@ -165,10 +165,6 @@ class InpaintCrop:
             else:
                 assert False, "mask size must match image size"
 
-        # Invert mask if requested
-        if invert_mask:
-            mask = 1.0 - mask
-
         # Fill holes if requested
         if fill_mask_holes:
             holemask = mask.reshape((-1, mask.shape[-2], mask.shape[-1])).cpu()
@@ -184,6 +180,10 @@ class InpaintCrop:
                 out.append(output)
             mask = torch.stack(out, dim=0)
             mask = torch.clamp(mask, 0.0, 1.0)
+
+        # Invert mask if requested
+        if invert_mask:
+            mask = 1.0 - mask
 
         # Validate or initialize context mask
         if optional_context_mask is None:
