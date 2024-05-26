@@ -10,6 +10,14 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 
 "✂️  Inpaint Stitch" is a node that stitches the inpainted image back into the original image without altering unmasked areas.
 
+The main advantages of inpainting only in a masked area with these nodes are:
+  - It's much faster than sampling the whole image.
+  - It enables setting the right amount of context from the image for the prompt to be more accurately represented in the generated picture.
+  - It enables upscaling before sampling in order to generate more detail, then stitching back in the original picture.
+  - It enables downscaling before sampling if the area is too large, in order to avoid artifacts such as double heads or double bodies.
+  - It enables forcing a specific resolution (e.g. 1024x1024 for SDXL models).
+  - It doesn't modify the unmasked part of the image, not even passing it through VAE encode and decode.
+
 # Video Tutorial
 
 [![Video Tutorial](https://img.youtube.com/vi/u5cNrumkz2w/0.jpg)](https://www.youtube.com/watch?v=u5cNrumkz2w)
