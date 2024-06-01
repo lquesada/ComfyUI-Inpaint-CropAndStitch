@@ -79,7 +79,7 @@ If you want to inpaint fast with SD 1.5, use free size with padding 32. You may 
 If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
-## 2024-06-31
+## 2024-06-01
 - The node now resorts to outpainting if the context area doesn't fit in the image (e.g. for large masks that wouldn't fit in the image with the desired aspect ratio). This makes forced_size actually force the required size.
 - Force_size is now specified as separate force_width and force_height, to match any desired sampling resolution.
 - New mode: ranged size, similar to free size but also takes min_width, min_height, max_width, and max_height, in order to avoid over scaling or under scaling beyond desirable limits.
