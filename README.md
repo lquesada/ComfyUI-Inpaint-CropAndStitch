@@ -10,7 +10,7 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 
 "✂️  Inpaint Stitch" is a node that stitches the inpainted image back into the original image without altering unmasked areas.
 
--The main advantages of inpainting only in a masked area with these nodes are:
+The main advantages of inpainting only in a masked area with these nodes are:
   - It's much faster than sampling the whole image.
   - It enables setting the right amount of context from the image for the prompt to be more accurately represented in the generated picture.
   - It enables upscaling before sampling in order to generate more detail, then stitching back in the original picture.
