@@ -37,10 +37,15 @@ class InpaintCrop:
                 "invert_mask": ("BOOLEAN", {"default": False}),
                 "fill_mask_holes": ("BOOLEAN", {"default": True}),
                 "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp"], {"default": "bicubic"}),
-                "mode": (["free size", "forced size"], {"default": "free size"}),
-                "force_size": ([512, 768, 1024, 1344, 2048, 4096, 8192], {"default": 1024}),
+                "mode": (["free size", "forced size", "ranged size"], {"default": "free size"}),
+                "force_width": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
+                "force_height": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "rescale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}),
                 "padding": ([8, 16, 32, 64, 128, 256, 512], {"default": 32}),
+                "min_width": ("INT", {"default": 512, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
+                "min_height": ("INT", {"default": 512, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
+                "max_width": ("INT", {"default": 768, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
+                "max_height": ("INT", {"default": 768, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
            },
            "optional": {
                 "optional_context_mask": ("MASK",),
@@ -54,37 +59,67 @@ class InpaintCrop:
 
     FUNCTION = "inpaint_crop"
 
-    def adjust_to_square(self, x_min, x_max, y_min, y_max, width, height, target_size=None):
-        if target_size is None:
-            x_size = x_max - x_min + 1
-            y_size = y_max - y_min + 1
-            target_size = max(x_size, y_size)
+    def adjust_to_aspect_ratio(self, x_min, x_max, y_min, y_max, width, height, target_width, target_height):
+        # Calculate the current width and height
+        current_width = x_max - x_min + 1
+        current_height = y_max - y_min + 1
 
+        # Calculate aspect ratios
+        aspect_ratio = target_width / target_height
+        current_aspect_ratio = current_width / current_height
+
+        if current_aspect_ratio > aspect_ratio:
+            # Adjust width to match target aspect ratio
+            new_width = int(current_height * aspect_ratio)
+            x_mid = (x_min + x_max) // 2
+            x_min = max(x_mid - new_width // 2, 0)
+            x_max = x_min + new_width - 1
+        else:
+            # Adjust height to match target aspect ratio
+            new_height = int(current_width / aspect_ratio)
+            y_mid = (y_min + y_max) // 2
+            y_min = max(y_mid - new_height // 2, 0)
+            y_max = y_min + new_height - 1
+
+        current_width = x_max - x_min + 1
+        current_height = y_max - y_min + 1
+        current_aspect_ratio = current_width / current_height
+        # Ensure the ranges do not exceed the image boundaries
+        if x_max >= width:
+            x_max = width - 1
+            x_min = max(x_max - (x_max - x_min), 0)
+        if y_max >= height:
+            y_max = height - 1
+            y_min = max(y_max - (y_max - y_min), 0)
+
+        return x_min, x_max, y_min, y_max
+
+    def adjust_to_size(self, x_min, x_max, y_min, y_max, width, height, target_width, target_height):
         # Calculate the midpoint of the current x and y ranges
         x_mid = (x_min + x_max) // 2
-        y_mid = (y_min + y_max) // 2
+        y_mid = (y_min + y_max) // 2 
 
-        # Adjust x_min, x_max, y_min, y_max to make the range square centered around the midpoints
-        x_min = max(x_mid - target_size // 2, 0)
-        x_max = x_min + target_size - 1
-        y_min = max(y_mid - target_size // 2, 0)
-        y_max = y_min + target_size - 1
+        # Calculate new x_min, x_max, y_min, y_max to match the target size
+        x_min = max(x_mid - target_width // 2, 0)
+        x_max = x_min + target_width - 1
+        y_min = max(y_mid - target_height // 2, 0)
+        y_max = y_min + target_height - 1
 
         # Ensure the ranges do not exceed the image boundaries
         if x_max >= width:
             x_max = width - 1
-            x_min = x_max - target_size + 1
+            x_min = x_max - target_width + 1
         if y_max >= height:
             y_max = height - 1
-            y_min = y_max - target_size + 1
+            y_min = y_max - target_height + 1
 
         # Additional checks to make sure all coordinates are within bounds
         if x_min < 0:
             x_min = 0
-            x_max = target_size - 1
+            x_max = x_min + target_width - 1
         if y_min < 0:
             y_min = 0
-            y_max = target_size - 1
+            y_max = y_min + target_height - 1
 
         return x_min, x_max, y_min, y_max
 
@@ -115,12 +150,12 @@ class InpaintCrop:
 
         return new_min_val, new_max_val
 
-    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, rescale_algorithm, force_size, rescale_factor, padding, optional_context_mask=None):
+    def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, rescale_algorithm, force_width, force_height, rescale_factor, padding, min_width, min_height, max_width, max_height, optional_context_mask=None):
         assert image.shape[0] == mask.shape[0], "Batch size of images and masks must be the same"
         if optional_context_mask is not None:
             assert optional_context_mask.shape[0] == image.shape[0], "Batch size of optional_context_masks must be the same as images or None"
 
-        result_stitch = {'x': [], 'y': [], 'original_image': [], 'cropped_mask': [], 'rescale_x': [], 'rescale_y': []}
+        result_stitch = {'x': [], 'y': [], 'original_image': [], 'cropped_mask': [], 'rescale_x': [], 'rescale_y': [], 'start_x': [], 'start_y': [], 'initial_width': [], 'initial_height': []}
         results_image = []
         results_mask = []
 
@@ -134,8 +169,8 @@ class InpaintCrop:
 
             stitch, cropped_image, cropped_mask = self.inpaint_crop_single_image(
                 one_image, one_mask, context_expand_pixels, context_expand_factor, invert_mask,
-                fill_mask_holes, mode, rescale_algorithm, force_size, rescale_factor,
-                padding, one_optional_context_mask
+                fill_mask_holes, mode, rescale_algorithm, force_width, force_height, rescale_factor,
+                padding, min_width, min_height, max_width, max_height, one_optional_context_mask
             )
 
             for key in result_stitch:
@@ -151,12 +186,7 @@ class InpaintCrop:
         return result_stitch, result_image, result_mask
        
     # Parts of this function are from KJNodes: https://github.com/kijai/ComfyUI-KJNodes
-    def inpaint_crop_single_image(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, rescale_algorithm, force_size, rescale_factor, padding, optional_context_mask=None):
-        original_image = image
-        original_mask = mask
-        original_width = image.shape[2]
-        original_height = image.shape[1]
-
+    def inpaint_crop_single_image(self, image, mask, context_expand_pixels, context_expand_factor, invert_mask, fill_mask_holes, mode, rescale_algorithm, force_width, force_height, rescale_factor, padding, min_width, min_height, max_width, max_height, optional_context_mask=None):
         #Validate or initialize mask
         if mask.shape[1] != image.shape[1] or mask.shape[2] != image.shape[2]:
             non_zero_indices = torch.nonzero(mask[0], as_tuple=True)
@@ -198,10 +228,44 @@ class InpaintCrop:
             context_mask = optional_context_mask + mask 
             context_mask = torch.clamp(context_mask, 0.0, 1.0)
 
+        # Ensure mask dimensions match image dimensions except channels
+        initial_batch, initial_height, initial_width, initial_channels = image.shape
+        mask_batch, mask_height, mask_width = mask.shape
+        context_mask_batch, context_mask_height, context_mask_width = context_mask.shape
+        assert initial_height == mask_height and initial_width == mask_width, "Image and mask dimensions must match"
+        assert initial_height == context_mask_height and initial_width == context_mask_width, "Image and context mask dimensions must match"
+
+        # Extend image and masks to turn it into a big square in case the context area would go off bounds
+        extend_y = (initial_width + 1) // 2 # Intended, extend height by width (turn into square)
+        extend_x = (initial_height + 1) // 2 # Intended, extend width by height (turn into square)
+        new_height = initial_height + 2 * extend_y
+        new_width = initial_width + 2 * extend_x
+
+        new_image = torch.zeros((initial_batch, new_height, new_width, initial_channels), dtype=image.dtype)
+        new_mask = torch.ones((mask_batch, new_height, new_width), dtype=mask.dtype) # assume ones in extended image
+        new_context_mask = torch.zeros((mask_batch, new_height, new_width), dtype=context_mask.dtype)
+
+        start_y = extend_y
+        start_x = extend_x
+
+        new_image[:, start_y:start_y + initial_height, start_x:start_x + initial_width, :] = image
+        new_mask[:, start_y:start_y + initial_height, start_x:start_x + initial_width] = mask
+        new_context_mask[:, start_y:start_y + initial_height, start_x:start_x + initial_width] = context_mask
+
+        image = new_image
+        mask = new_mask
+        context_mask = new_context_mask
+
+
+        original_image = image
+        original_mask = mask
+        original_width = image.shape[2]
+        original_height = image.shape[1]
+
         # If there are no non-zero indices in the context_mask, return the original image and original mask
         non_zero_indices = torch.nonzero(context_mask[0], as_tuple=True)
         if not non_zero_indices[0].size(0):
-            stitch = {'x': 0, 'y': 0, 'original_image': original_image, 'cropped_mask': mask, 'rescale_x': 1.0, 'rescale_y': 1.0}
+            stitch = {'x': 0, 'y': 0, 'original_image': original_image, 'cropped_mask': mask, 'rescale_x': 1.0, 'rescale_y': 1.0, 'start_x': start_x, 'start_y': start_y, 'initial_width': initial_width, 'initial_height': initial_height}
             return (stitch, original_image, original_mask)
 
         # Compute context area from context mask
@@ -221,17 +285,18 @@ class InpaintCrop:
         y_max = min(y_max + y_grow // 2, height - 1)
         x_min = max(x_min - x_grow // 2, 0)
         x_max = min(x_max + x_grow // 2, width - 1)
+        y_size = y_max - y_min + 1
+        x_size = x_max - x_min + 1
 
         effective_upscale_factor_x = 1.0
         effective_upscale_factor_y = 1.0
         # Adjust to preferred size
         if mode == 'forced size':
-            # Turn into square
-            x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height)
-            current_size = x_max - x_min + 1  # Assuming x_max - x_min == y_max - y_min due to square adjustment
-            if current_size != force_size:
-                # Upscale to fit in the force_size square, will be downsized at stitch phase
-                upscale_factor = force_size / current_size
+            x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, force_width, force_height)
+            current_width = x_max - x_min + 1
+            current_height = y_max - y_min + 1
+            if current_width != force_width or current_height != force_height:
+                upscale_factor = min(force_width / current_width, force_height / current_height)
 
                 samples = image            
                 samples = samples.movedim(-1, 1)
@@ -256,9 +321,20 @@ class InpaintCrop:
                 y_max = math.floor(y_max * effective_upscale_factor_y)
 
                 # Readjust to force size because the upscale math may not round well
-                x_min, x_max, y_min, y_max = self.adjust_to_square(x_min, x_max, y_min, y_max, width, height, target_size=force_size)
+                x_min, x_max, y_min, y_max = self.adjust_to_size(x_min, x_max, y_min, y_max, width, height, force_width, force_height)
 
-        elif mode == 'free size':
+        elif mode == 'free size' or mode == 'ranged size':
+            if mode == 'ranged size':
+                # Adjust to min and max sizes
+                min_rescale_width = min_width / x_size
+                min_rescale_height = min_height / y_size
+                min_rescale_factor = min(min_rescale_width, min_rescale_height)
+                rescale_factor = max(min_rescale_factor, rescale_factor)
+                max_rescale_width = max_width / x_size
+                max_rescale_height = max_height / y_size
+                max_rescale_factor = min(max_rescale_width, max_rescale_height)
+                rescale_factor = min(max_rescale_factor, rescale_factor)
+
             # Upscale image and masks if requested, they will be downsized at stitch phase
             if rescale_factor < 0.999 or rescale_factor > 1.001:
                 samples = image            
@@ -300,7 +376,8 @@ class InpaintCrop:
         cropped_mask = mask[:, y_min:y_max+1, x_min:x_max+1]
 
         # Return stitch (to be consumed by the class below), image, and mask
-        stitch = {'x': x_min, 'y': y_min, 'original_image': original_image, 'cropped_mask': cropped_mask, 'rescale_x': effective_upscale_factor_x, 'rescale_y': effective_upscale_factor_y}
+        stitch = {'x': x_min, 'y': y_min, 'original_image': original_image, 'cropped_mask': cropped_mask, 'rescale_x': effective_upscale_factor_x, 'rescale_y': effective_upscale_factor_y, 'start_x': start_x, 'start_y': start_y, 'initial_width': initial_width, 'initial_height': initial_height}
+
         return (stitch, cropped_image, cropped_mask)
 
 class InpaintStitch:
@@ -389,6 +466,10 @@ class InpaintStitch:
         x = stitch['x']
         y = stitch['y']
         stitched_image = original_image.clone().movedim(-1, 1)
+        start_x = stitch['start_x']
+        start_y = stitch['start_y']
+        initial_width = stitch['initial_width']
+        initial_height = stitch['initial_height']
 
         inpaint_width = inpainted_image.shape[2]
         inpaint_height = inpainted_image.shape[1]
@@ -411,4 +492,7 @@ class InpaintStitch:
 
         output = self.composite(stitched_image, inpainted_image.movedim(-1, 1), x, y, cropped_mask, 1).movedim(1, -1)
 
+        # Crop out from the extended dimensions back to original.
+        cropped_output = output[:, start_y:start_y + initial_height, start_x:start_x + initial_width, :]
+        output = cropped_output
         return (output,)

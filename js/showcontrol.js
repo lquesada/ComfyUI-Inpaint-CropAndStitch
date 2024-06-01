@@ -6,15 +6,27 @@ function inpaintCropHandler(node) {
     if (node.comfyClass != "InpaintCrop") {
         return;
     }
-    toggleWidget(node, findWidgetByName(node, "force_size"));
+    toggleWidget(node, findWidgetByName(node, "force_width"));
+    toggleWidget(node, findWidgetByName(node, "force_height"));
     toggleWidget(node, findWidgetByName(node, "rescale_factor"));
     toggleWidget(node, findWidgetByName(node, "padding"));
-    if (findWidgetByName(node, "mode").value == "free size") {
+    toggleWidget(node, findWidgetByName(node, "min_width"));
+    toggleWidget(node, findWidgetByName(node, "min_height"));
+    toggleWidget(node, findWidgetByName(node, "max_width"));
+    toggleWidget(node, findWidgetByName(node, "max_height"));
+    if (findWidgetByName(node, "mode").value == "free size" || findWidgetByName(node, "mode").value == "ranged size") {
         toggleWidget(node, findWidgetByName(node, "rescale_factor"), true);
         toggleWidget(node, findWidgetByName(node, "padding"), true);
     }
+    if (findWidgetByName(node, "mode").value == "ranged size") {
+        toggleWidget(node, findWidgetByName(node, "min_width"), true);
+        toggleWidget(node, findWidgetByName(node, "min_height"), true);
+        toggleWidget(node, findWidgetByName(node, "max_width"), true);
+        toggleWidget(node, findWidgetByName(node, "max_height"), true);
+    }
     else if (findWidgetByName(node, "mode").value == "forced size") {
-        toggleWidget(node, findWidgetByName(node, "force_size"), true);
+        toggleWidget(node, findWidgetByName(node, "force_width"), true);
+        toggleWidget(node, findWidgetByName(node, "force_height"), true);
     }
     return;
 }

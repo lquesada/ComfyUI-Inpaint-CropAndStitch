@@ -10,7 +10,7 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 
 "✂️  Inpaint Stitch" is a node that stitches the inpainted image back into the original image without altering unmasked areas.
 
-The main advantages of inpainting only in a masked area with these nodes are:
+-The main advantages of inpainting only in a masked area with these nodes are:
   - It's much faster than sampling the whole image.
   - It enables setting the right amount of context from the image for the prompt to be more accurately represented in the generated picture.
   - It enables upscaling before sampling in order to generate more detail, then stitching back in the original picture.
@@ -30,9 +30,10 @@ The main advantages of inpainting only in a masked area with these nodes are:
 - `invert_mask`: Whether to fully invert the mask, that is, only keep what was marked, instead of removing what was marked.
 - `fill_mask_holes`: Whether to fully fill any holes (small or large) in the mask, that is, mark fully enclosed areas as part of the mask.
 - `rescale_algorithm`: Rescale algorithm to use. bislerp is for super high quality but very slow, recommended for stich. bicubic is high quality and faster, recommended for crop.
-- `mode`: Free size or Forced size.
+- `mode`: Free size, Forced size, or Ranged size.
     - Free size uses `internal_rescale_factor` to optionally rescale the content before sampling and eventually scale back before stitching, and `padding` to align to standard sizes.
-    - Forced size uses `force_size` and upscales the content to take that size before sampling, then downscales before stitching back. Use forced size e.g. for SDXL.
+    - Forced size uses `force_width` and `force_height` and upscales the content to take that size before sampling, then downscales before stitching back. Use forced size e.g. for SDXL.
+    - Ranged size is like free size but also allows setting `min_width`, `max_width`, `min_height`, and `max_height` to avoid overscaling or underscaling the area.
 
 ## Example: Simple free size inpaint
 This example inpaints by sampling on a small section of the larger image. It runs ~20x faster than sampling on the whole image.
@@ -46,14 +47,12 @@ This example inpaints by taking more context from a wider area by using a contex
 
 Download the following example workflow from [here](inpaint-cropandstitch_example_workflow_context_mask.json) or drag and drop the screenshot into ComfyUI.
 
-![Workflow](inpaint-cropandstitch_example_workflow_context_mask.png)
+## Example: Upscaled ranged size inpaint
+This example inpaints by upscaling a small section of the larger image, but keeps the image to sample between 512x512 and 768x768 (width and height separately).
 
-## Example: Upscaled free size inpaint
-This example inpaints by upscaling a small section of the larger image, sampling with increased details given the higher resolution, then re-stitching back.
+Download the following example workflow from [here](inpaint-cropandstitch_example_workflow_rangedsize.json) or drag and drop the screenshot into ComfyUI.
 
-Download the following example workflow from [here](inpaint-cropandstitch_example_workflow_freesize_upscale.json) or drag and drop the screenshot into ComfyUI.
-
-![Workflow](inpaint-cropandstitch_example_workflow_freesize_upscale.png)
+![Workflow](inpaint-cropandstitch_example_workflow_rangedsize.png)
 
 ## Example: Upscaled forced size inpaint
 This example inpaints by upscaling a small section of the larger image to exactly 512.
@@ -78,6 +77,10 @@ If you want to inpaint fast with SD 1.5, use free size with padding 32. You may 
 If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
+## 2024-06-31
+- The node now resorts to outpainting if the context area doesn't fit in the image (e.g. for large masks that wouldn't fit in the image with the desired aspect ratio). This makes forced_size actually force the required size.
+- Force_size is now specified as separate force_width and force_height, to match any desired sampling resolution.
+- New mode: ranged size, similar to free size but also takes min_width, min_height, max_width, and max_height, in order to avoid over scaling or under scaling beyond desirable limits.
 ## 2024-05-15
 - Depending on the selected mode ("free size" or "forced size") some fields are hidden.
 ## 2024-05-14
