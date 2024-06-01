@@ -47,6 +47,8 @@ This example inpaints by taking more context from a wider area by using a contex
 
 Download the following example workflow from [here](inpaint-cropandstitch_example_workflow_context_mask.json) or drag and drop the screenshot into ComfyUI.
 
+![Workflow](inpaint-cropandstitch_example_workflow_context_mask.png)
+
 ## Example: Upscaled ranged size inpaint
 This example inpaints by upscaling a small section of the larger image, but keeps the image to sample between 512x512 and 768x768 (width and height separately).
 
