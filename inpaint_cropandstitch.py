@@ -60,6 +60,8 @@ class InpaintCrop:
     FUNCTION = "inpaint_crop"
 
     def adjust_to_aspect_ratio(self, x_min, x_max, y_min, y_max, width, height, target_width, target_height):
+        x_min_key, x_max_key, y_min_key, y_max_key = x_min, x_max, y_min, y_max
+
         # Calculate the current width and height
         current_width = x_max - x_min + 1
         current_height = y_max - y_min + 1
@@ -68,29 +70,73 @@ class InpaintCrop:
         aspect_ratio = target_width / target_height
         current_aspect_ratio = current_width / current_height
 
-        if current_aspect_ratio > aspect_ratio:
+        if current_aspect_ratio < aspect_ratio:
             # Adjust width to match target aspect ratio
             new_width = int(current_height * aspect_ratio)
-            x_mid = (x_min + x_max) // 2
-            x_min = max(x_mid - new_width // 2, 0)
-            x_max = x_min + new_width - 1
+            extend_x = (new_width - current_width)
+            x_min = max(x_min - extend_x/2, 0)
+            x_max = min(x_max + extend_x/2, width - 1)
         else:
             # Adjust height to match target aspect ratio
             new_height = int(current_width / aspect_ratio)
-            y_mid = (y_min + y_max) // 2
-            y_min = max(y_mid - new_height // 2, 0)
-            y_max = y_min + new_height - 1
+            extend_y = (new_height - current_height)
+            y_min = max(y_min - extend_y/2, 0)
+            y_max = min(y_max + extend_y/2, height - 1)
 
-        current_width = x_max - x_min + 1
-        current_height = y_max - y_min + 1
-        current_aspect_ratio = current_width / current_height
+        # Ensure the entire original area is included
+        x_min = max(x_min_key, 0)
+        x_max = min(x_max, width - 1)
+        y_min = max(y_min_key, 0)
+        y_max = min(y_max, height - 1)
+
+        # Ensure the entire original area is included
+        x_min = min(x_min_key, x_min)
+        x_max = max(x_max_key, x_max)
+        y_min = min(y_min_key, y_min)
+        y_max = max(y_max_key, y_max)
+
         # Ensure the ranges do not exceed the image boundaries
         if x_max >= width:
             x_max = width - 1
-            x_min = max(x_max - (x_max - x_min), 0)
+            x_min = max(x_max - target_width + 1, 0)
         if y_max >= height:
             y_max = height - 1
-            y_min = max(y_max - (y_max - y_min), 0)
+            y_min = max(y_max - target_height + 1, 0)
+
+        return x_min, x_max, y_min, y_max
+
+    def adjust_to_preferred(self, x_min, x_max, y_min, y_max, width, height, preferred_x_start, preferred_x_end, preferred_y_start, preferred_y_end):
+        # Ensure the area is within preferred bounds as much as possible
+        if preferred_x_start <= x_min and preferred_x_end >= x_max and preferred_y_start <= y_min and preferred_y_end >= y_max:
+            return x_min, x_max, y_min, y_max
+
+        # Shift x_min and x_max to fit within preferred bounds if possible
+        if x_max - x_min + 1 <= preferred_x_end - preferred_x_start + 1:
+            if x_min < preferred_x_start:
+                x_shift = preferred_x_start - x_min
+                x_min += x_shift
+                x_max += x_shift
+            elif x_max > preferred_x_end:
+                x_shift = x_max - preferred_x_end
+                x_min -= x_shift
+                x_max -= x_shift
+
+        # Shift y_min and y_max to fit within preferred bounds if possible
+        if y_max - y_min + 1 <= preferred_y_end - preferred_y_start + 1:
+            if y_min < preferred_y_start:
+                y_shift = preferred_y_start - y_min
+                y_min += y_shift
+                y_max += y_shift
+            elif y_max > preferred_y_end:
+                y_shift = y_max - preferred_y_end
+                y_min -= y_shift
+                y_max -= y_shift
+
+        # Ensure the ranges do not exceed the image boundaries
+        x_min = max(x_min, 0)
+        x_max = min(x_max, width - 1)
+        y_min = max(y_min, 0)
+        y_max = min(y_max, height - 1)
 
         return x_min, x_max, y_min, y_max
 
@@ -293,6 +339,7 @@ class InpaintCrop:
         # Adjust to preferred size
         if mode == 'forced size':
             x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, force_width, force_height)
+            x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
             current_width = x_max - x_min + 1
             current_height = y_max - y_min + 1
             if current_width != force_width or current_height != force_height:
@@ -319,12 +366,47 @@ class InpaintCrop:
                 x_max = math.floor(x_max * effective_upscale_factor_x)
                 y_min = math.floor(y_min * effective_upscale_factor_y)
                 y_max = math.floor(y_max * effective_upscale_factor_y)
+                start_x = math.floor(start_x * effective_upscale_factor_x)
+                initial_width = math.floor(initial_width * effective_upscale_factor_x)
+                start_y = math.floor(start_y * effective_upscale_factor_y)
+                initial_height = math.floor(initial_height * effective_upscale_factor_y)
 
                 # Readjust to force size because the upscale math may not round well
                 x_min, x_max, y_min, y_max = self.adjust_to_size(x_min, x_max, y_min, y_max, width, height, force_width, force_height)
+                x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
 
         elif mode == 'free size' or mode == 'ranged size':
             if mode == 'ranged size':
+                # Ensure we set an aspect ratio supported by min_width, max_width, min_height, max_height
+                current_width = x_max - x_min + 1
+                current_height = y_max - y_min + 1
+        
+                # Calculate aspect ratio of the selected area
+                current_aspect_ratio = current_width / current_height
+
+                # Calculate the aspect ratio bounds
+                min_aspect_ratio = min_width / max_height
+                max_aspect_ratio = max_width / min_height
+
+                # Adjust target width and height based on aspect ratio bounds
+                if current_aspect_ratio < min_aspect_ratio:
+                    # Adjust to meet minimum width constraint
+                    target_width = min(current_width, min_width)
+                    target_height = int(target_width / min_aspect_ratio)
+                    x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height, target_width, target_height)
+                elif current_aspect_ratio > max_aspect_ratio:
+                    # Adjust to meet maximum width constraint
+                    target_height = min(current_height, max_height)
+                    target_width = int(target_height * max_aspect_ratio)
+                    x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height, target_width, target_height)
+                else:
+                    # Aspect ratio is within bounds, keep the current size
+                    target_width = current_width
+                    target_height = current_height
+
+                y_size = y_max - y_min + 1
+                x_size = x_max - x_min + 1
+
                 # Adjust to min and max sizes
                 min_rescale_width = min_width / x_size
                 min_rescale_height = min_height / y_size
