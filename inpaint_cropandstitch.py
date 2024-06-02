@@ -393,12 +393,14 @@ class InpaintCrop:
                     # Adjust to meet minimum width constraint
                     target_width = min(current_width, min_width)
                     target_height = int(target_width / min_aspect_ratio)
-                    x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height, target_width, target_height)
+                    x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, target_width, target_height)
+                    x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
                 elif current_aspect_ratio > max_aspect_ratio:
                     # Adjust to meet maximum width constraint
                     target_height = min(current_height, max_height)
                     target_width = int(target_height * max_aspect_ratio)
-                    x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height, target_width, target_height)
+                    x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, target_width, target_height)
+                    x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
                 else:
                     # Aspect ratio is within bounds, keep the current size
                     target_width = current_width
