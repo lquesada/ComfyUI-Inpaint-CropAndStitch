@@ -74,16 +74,16 @@ class InpaintCrop:
             # Adjust width to match target aspect ratio
             new_width = int(current_height * aspect_ratio)
             extend_x = (new_width - current_width)
-            x_min = max(x_min - extend_x/2, 0)
-            x_max = min(x_max + extend_x/2, width - 1)
+            x_min = max(x_min - extend_x//2, 0)
+            x_max = min(x_max + extend_x//2, width - 1)
         else:
             # Adjust height to match target aspect ratio
             new_height = int(current_width / aspect_ratio)
             extend_y = (new_height - current_height)
-            y_min = max(y_min - extend_y/2, 0)
-            y_max = min(y_max + extend_y/2, height - 1)
+            y_min = max(y_min - extend_y//2, 0)
+            y_max = min(y_max + extend_y//2, height - 1)
 
-        return x_min, x_max, y_min, y_max
+        return int(x_min), int(x_max), int(y_min), int(y_max)
 
     def adjust_to_preferred(self, x_min, x_max, y_min, y_max, width, height, preferred_x_start, preferred_x_end, preferred_y_start, preferred_y_end):
         # Ensure the area is within preferred bounds as much as possible
@@ -112,7 +112,7 @@ class InpaintCrop:
                 y_min -= y_shift
                 y_max -= y_shift
 
-        return x_min, x_max, y_min, y_max
+        return int(x_min), int(x_max), int(y_min), int(y_max)
 
     def adjust_to_size(self, x_min, x_max, y_min, y_max, width, height, target_width, target_height):
         # Calculate the midpoint of the current x and y ranges
@@ -125,7 +125,7 @@ class InpaintCrop:
         y_min = max(y_mid - target_height // 2, 0)
         y_max = y_min + target_height - 1
 
-        return x_min, x_max, y_min, y_max
+        return int(x_min), int(x_max), int(y_min), int(y_max)
 
     def apply_padding(self, min_val, max_val, max_boundary, padding):
         # Calculate the midpoint and the original range size
@@ -396,10 +396,19 @@ class InpaintCrop:
                 samples = samples.squeeze(1)
                 mask = samples
 
+                # Do math based on min,size instead of min,max to avoid rounding errors
+                y_size = y_max - y_min + 1
+                x_size = x_max - x_min + 1
+                target_x_size = int(x_size * effective_upscale_factor_x)
+                target_y_size = int(y_size * effective_upscale_factor_y)
+
                 x_min = math.floor(x_min * effective_upscale_factor_x)
-                x_max = math.floor(x_max * effective_upscale_factor_x)
+                x_max = x_min + target_x_size
                 y_min = math.floor(y_min * effective_upscale_factor_y)
-                y_max = math.floor(y_max * effective_upscale_factor_y)
+                y_max = y_min + target_y_size
+
+                y_size = y_max - y_min + 1
+                x_size = x_max - x_min + 1
 
             # Pad area (if possible, i.e. if pad is smaller than width/height) to avoid the sampler returning smaller results
             if padding > 1:
