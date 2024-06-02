@@ -83,26 +83,6 @@ class InpaintCrop:
             y_min = max(y_min - extend_y/2, 0)
             y_max = min(y_max + extend_y/2, height - 1)
 
-        # Ensure the entire original area is included
-        x_min = max(x_min_key, 0)
-        x_max = min(x_max, width - 1)
-        y_min = max(y_min_key, 0)
-        y_max = min(y_max, height - 1)
-
-        # Ensure the entire original area is included
-        x_min = min(x_min_key, x_min)
-        x_max = max(x_max_key, x_max)
-        y_min = min(y_min_key, y_min)
-        y_max = max(y_max_key, y_max)
-
-        # Ensure the ranges do not exceed the image boundaries
-        if x_max >= width:
-            x_max = width - 1
-            x_min = max(x_max - target_width + 1, 0)
-        if y_max >= height:
-            y_max = height - 1
-            y_min = max(y_max - target_height + 1, 0)
-
         return x_min, x_max, y_min, y_max
 
     def adjust_to_preferred(self, x_min, x_max, y_min, y_max, width, height, preferred_x_start, preferred_x_end, preferred_y_start, preferred_y_end):
@@ -132,12 +112,6 @@ class InpaintCrop:
                 y_min -= y_shift
                 y_max -= y_shift
 
-        # Ensure the ranges do not exceed the image boundaries
-        x_min = max(x_min, 0)
-        x_max = min(x_max, width - 1)
-        y_min = max(y_min, 0)
-        y_max = min(y_max, height - 1)
-
         return x_min, x_max, y_min, y_max
 
     def adjust_to_size(self, x_min, x_max, y_min, y_max, width, height, target_width, target_height):
@@ -150,22 +124,6 @@ class InpaintCrop:
         x_max = x_min + target_width - 1
         y_min = max(y_mid - target_height // 2, 0)
         y_max = y_min + target_height - 1
-
-        # Ensure the ranges do not exceed the image boundaries
-        if x_max >= width:
-            x_max = width - 1
-            x_min = x_max - target_width + 1
-        if y_max >= height:
-            y_max = height - 1
-            y_min = y_max - target_height + 1
-
-        # Additional checks to make sure all coordinates are within bounds
-        if x_min < 0:
-            x_min = 0
-            x_max = x_min + target_width - 1
-        if y_min < 0:
-            y_min = 0
-            y_max = y_min + target_height - 1
 
         return x_min, x_max, y_min, y_max
 
@@ -443,17 +401,16 @@ class InpaintCrop:
                 y_min = math.floor(y_min * effective_upscale_factor_y)
                 y_max = math.floor(y_max * effective_upscale_factor_y)
 
-                # Ensure that context area doesn't go outside of the image
-                x_min = max(x_min, 0)
-                x_max = min(x_max, width - 1)
-                y_min = max(y_min, 0)
-                y_max = min(y_max, height - 1)
-
             # Pad area (if possible, i.e. if pad is smaller than width/height) to avoid the sampler returning smaller results
             if padding > 1:
                 x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
                 y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
 
+        # Ensure that context area doesn't go outside of the image
+        x_min = max(x_min, 0)
+        x_max = min(x_max, width - 1)
+        y_min = max(y_min, 0)
+        y_max = min(y_max, height - 1)
 
         # Crop the image and the mask, sized context area
         cropped_image = image[:, y_min:y_max+1, x_min:x_max+1]
