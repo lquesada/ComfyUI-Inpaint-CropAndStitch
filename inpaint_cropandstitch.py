@@ -324,14 +324,14 @@ class InpaintCrop:
                 x_max = math.floor(x_max * effective_upscale_factor_x)
                 y_min = math.floor(y_min * effective_upscale_factor_y)
                 y_max = math.floor(y_max * effective_upscale_factor_y)
-                start_x = math.floor(start_x * effective_upscale_factor_x)
-                initial_width = math.floor(initial_width * effective_upscale_factor_x)
-                start_y = math.floor(start_y * effective_upscale_factor_y)
-                initial_height = math.floor(initial_height * effective_upscale_factor_y)
+                start_x_tmp = math.floor(start_x * effective_upscale_factor_x)
+                initial_width_tmp = math.floor(initial_width * effective_upscale_factor_x)
+                start_y_tmp = math.floor(start_y * effective_upscale_factor_y)
+                initial_height_tmp = math.floor(initial_height * effective_upscale_factor_y)
 
                 # Readjust to force size because the upscale math may not round well
                 x_min, x_max, y_min, y_max = self.adjust_to_size(x_min, x_max, y_min, y_max, width, height, force_width, force_height)
-                x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
+                x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x_tmp, start_x_tmp+initial_width_tmp, start_y_tmp, start_y+initial_height_tmp)
 
         elif mode == 'free size' or mode == 'ranged size':
             if mode == 'ranged size':
