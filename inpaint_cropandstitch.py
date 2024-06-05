@@ -23,7 +23,7 @@ class InpaintCrop:
 
     This node crop before sampling and stitch after sampling for fast, efficient inpainting without altering unmasked areas.
     Context area can be specified via expand pixels and expand factor or via a separate (optional) mask.
-    Works free size and also forced size.
+    Works free size, forced size, and ranged size.
     """
 
     @classmethod
@@ -111,19 +111,6 @@ class InpaintCrop:
                 y_shift = y_max - preferred_y_end
                 y_min -= y_shift
                 y_max -= y_shift
-
-        return int(x_min), int(x_max), int(y_min), int(y_max)
-
-    def adjust_to_size(self, x_min, x_max, y_min, y_max, width, height, target_width, target_height):
-        # Calculate the midpoint of the current x and y ranges
-        x_mid = (x_min + x_max) // 2
-        y_mid = (y_min + y_max) // 2 
-
-        # Calculate new x_min, x_max, y_min, y_max to match the target size
-        x_min = max(x_mid - target_width // 2, 0)
-        x_max = x_min + target_width - 1
-        y_min = max(y_mid - target_height // 2, 0)
-        y_max = y_min + target_height - 1
 
         return int(x_min), int(x_max), int(y_min), int(y_max)
 
@@ -294,126 +281,95 @@ class InpaintCrop:
 
         effective_upscale_factor_x = 1.0
         effective_upscale_factor_y = 1.0
+
         # Adjust to preferred size
         if mode == 'forced size':
-            x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, force_width, force_height)
-            x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
+            #Sub case of ranged size.
+            mode = 'ranged size'
+            min_width = max_width = force_width
+            min_height = max_height = force_height
+            rescale_factor = 100
+
+        if mode == 'ranged size':
+            # Ensure we set an aspect ratio supported by min_width, max_width, min_height, max_height
             current_width = x_max - x_min + 1
             current_height = y_max - y_min + 1
-            if current_width != force_width or current_height != force_height:
-                upscale_factor = min(force_width / current_width, force_height / current_height)
-
-                samples = image            
-                samples = samples.movedim(-1, 1)
-
-                width = math.floor(samples.shape[3] * upscale_factor)
-                height = math.floor(samples.shape[2] * upscale_factor)
-                samples = rescale(samples, width, height, rescale_algorithm)
-                effective_upscale_factor_x = float(width)/float(original_width)
-                effective_upscale_factor_y = float(height)/float(original_height)
-                samples = samples.movedim(1, -1)
-                image = samples
-
-                samples = mask
-                samples = samples.unsqueeze(1)
-                samples = rescale(samples, width, height, rescale_algorithm)
-                samples = samples.squeeze(1)
-                mask = samples
-
-                x_min = math.floor(x_min * effective_upscale_factor_x)
-                x_max = math.floor(x_max * effective_upscale_factor_x)
-                y_min = math.floor(y_min * effective_upscale_factor_y)
-                y_max = math.floor(y_max * effective_upscale_factor_y)
-                start_x_tmp = math.floor(start_x * effective_upscale_factor_x)
-                initial_width_tmp = math.floor(initial_width * effective_upscale_factor_x)
-                start_y_tmp = math.floor(start_y * effective_upscale_factor_y)
-                initial_height_tmp = math.floor(initial_height * effective_upscale_factor_y)
-
-                # Readjust to force size because the upscale math may not round well
-                x_min, x_max, y_min, y_max = self.adjust_to_size(x_min, x_max, y_min, y_max, width, height, force_width, force_height)
-                x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x_tmp, start_x_tmp+initial_width_tmp, start_y_tmp, start_y+initial_height_tmp)
-
-        elif mode == 'free size' or mode == 'ranged size':
-            if mode == 'ranged size':
-                # Ensure we set an aspect ratio supported by min_width, max_width, min_height, max_height
-                current_width = x_max - x_min + 1
-                current_height = y_max - y_min + 1
         
-                # Calculate aspect ratio of the selected area
-                current_aspect_ratio = current_width / current_height
+            # Calculate aspect ratio of the selected area
+            current_aspect_ratio = current_width / current_height
 
-                # Calculate the aspect ratio bounds
-                min_aspect_ratio = min_width / max_height
-                max_aspect_ratio = max_width / min_height
+            # Calculate the aspect ratio bounds
+            min_aspect_ratio = min_width / max_height
+            max_aspect_ratio = max_width / min_height
 
-                # Adjust target width and height based on aspect ratio bounds
-                if current_aspect_ratio < min_aspect_ratio:
-                    # Adjust to meet minimum width constraint
-                    target_width = min(current_width, min_width)
-                    target_height = int(target_width / min_aspect_ratio)
-                    x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, target_width, target_height)
-                    x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
-                elif current_aspect_ratio > max_aspect_ratio:
-                    # Adjust to meet maximum width constraint
-                    target_height = min(current_height, max_height)
-                    target_width = int(target_height * max_aspect_ratio)
-                    x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, target_width, target_height)
-                    x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
-                else:
-                    # Aspect ratio is within bounds, keep the current size
-                    target_width = current_width
-                    target_height = current_height
+            # Adjust target width and height based on aspect ratio bounds
+            if current_aspect_ratio < min_aspect_ratio:
+                # Adjust to meet minimum width constraint
+                target_width = min(current_width, min_width)
+                target_height = int(target_width / min_aspect_ratio)
+                x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, target_width, target_height)
+                x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
+            elif current_aspect_ratio > max_aspect_ratio:
+                # Adjust to meet maximum width constraint
+                target_height = min(current_height, max_height)
+                target_width = int(target_height * max_aspect_ratio)
+                x_min, x_max, y_min, y_max = self.adjust_to_aspect_ratio(x_min, x_max, y_min, y_max, width, height, target_width, target_height)
+                x_min, x_max, y_min, y_max = self.adjust_to_preferred(x_min, x_max, y_min, y_max, width, height, start_x, start_x+initial_width, start_y, start_y+initial_height)
+            else:
+                # Aspect ratio is within bounds, keep the current size
+                target_width = current_width
+                target_height = current_height
 
-                y_size = y_max - y_min + 1
-                x_size = x_max - x_min + 1
+            y_size = y_max - y_min + 1
+            x_size = x_max - x_min + 1
 
-                # Adjust to min and max sizes
-                min_rescale_width = min_width / x_size
-                min_rescale_height = min_height / y_size
-                min_rescale_factor = min(min_rescale_width, min_rescale_height)
-                rescale_factor = max(min_rescale_factor, rescale_factor)
-                max_rescale_width = max_width / x_size
-                max_rescale_height = max_height / y_size
-                max_rescale_factor = min(max_rescale_width, max_rescale_height)
-                rescale_factor = min(max_rescale_factor, rescale_factor)
+            # Adjust to min and max sizes
+            min_rescale_width = min_width / x_size
+            min_rescale_height = min_height / y_size
+            min_rescale_factor = min(min_rescale_width, min_rescale_height)
+            rescale_factor = max(min_rescale_factor, rescale_factor)
+            max_rescale_width = max_width / x_size
+            max_rescale_height = max_height / y_size
+            max_rescale_factor = min(max_rescale_width, max_rescale_height)
+            rescale_factor = min(max_rescale_factor, rescale_factor)
 
-            # Upscale image and masks if requested, they will be downsized at stitch phase
-            if rescale_factor < 0.999 or rescale_factor > 1.001:
-                samples = image            
-                samples = samples.movedim(-1, 1)
+        # Upscale image and masks if requested, they will be downsized at stitch phase
+        if rescale_factor < 0.999 or rescale_factor > 1.001:
+            samples = image            
+            samples = samples.movedim(-1, 1)
 
-                width = math.floor(samples.shape[3] * rescale_factor)
-                height = math.floor(samples.shape[2] * rescale_factor)
-                samples = rescale(samples, width, height, rescale_algorithm)
-                effective_upscale_factor_x = float(width)/float(original_width)
-                effective_upscale_factor_y = float(height)/float(original_height)
-                samples = samples.movedim(1, -1)
-                image = samples
+            width = math.floor(samples.shape[3] * rescale_factor)
+            height = math.floor(samples.shape[2] * rescale_factor)
+            samples = rescale(samples, width, height, rescale_algorithm)
+            effective_upscale_factor_x = float(width)/float(original_width)
+            effective_upscale_factor_y = float(height)/float(original_height)
+            samples = samples.movedim(1, -1)
+            image = samples
 
-                samples = mask
-                samples = samples.unsqueeze(1)
-                samples = rescale(samples, width, height, rescale_algorithm)
-                samples = samples.squeeze(1)
-                mask = samples
+            samples = mask
+            samples = samples.unsqueeze(1)
+            samples = rescale(samples, width, height, rescale_algorithm)
+            samples = samples.squeeze(1)
+            mask = samples
 
-                # Do math based on min,size instead of min,max to avoid rounding errors
-                y_size = y_max - y_min + 1
-                x_size = x_max - x_min + 1
-                target_x_size = int(x_size * effective_upscale_factor_x)
-                target_y_size = int(y_size * effective_upscale_factor_y)
+            # Do math based on min,size instead of min,max to avoid rounding errors
+            y_size = y_max - y_min + 1
+            x_size = x_max - x_min + 1
+            target_x_size = int(x_size * effective_upscale_factor_x)
+            target_y_size = int(y_size * effective_upscale_factor_y)
 
-                x_min = math.floor(x_min * effective_upscale_factor_x)
-                x_max = x_min + target_x_size
-                y_min = math.floor(y_min * effective_upscale_factor_y)
-                y_max = y_min + target_y_size
+            x_min = math.floor(x_min * effective_upscale_factor_x)
+            x_max = x_min + target_x_size
+            y_min = math.floor(y_min * effective_upscale_factor_y)
+            y_max = y_min + target_y_size
 
-                y_size = y_max - y_min + 1
-                x_size = x_max - x_min + 1
+            y_size = y_max - y_min + 1
+            x_size = x_max - x_min + 1
 
-            # Pad area (if possible, i.e. if pad is smaller than width/height) to avoid the sampler returning smaller results
-            if padding > 1:
-                x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
-                y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
+        # Pad area (if possible, i.e. if pad is smaller than width/height) to avoid the sampler returning smaller results
+        if mode == 'free size' and padding > 1:
+            x_min, x_max = self.apply_padding(x_min, x_max, width, padding)
+            y_min, y_max = self.apply_padding(y_min, y_max, height, padding)
 
         # Ensure that context area doesn't go outside of the image
         x_min = max(x_min, 0)
