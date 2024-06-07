@@ -62,7 +62,6 @@ If you want to inpaint with SDXL, use forced size = 1024.
 ## 2024-06-07
 - Added a blending radius for seamless inpainting.
 - Added a blur mask setting that grows and blurs the mask, providing better support
-Better support for InpaintModelConditioning with a new blur mask setting and with extra logic on the external-outpainted area of the image
 ## 2024-06-01
 - Force_size is now specified as separate force_width and force_height, to match any desired sampling resolution.
 - New mode: ranged size, similar to free size but also takes min_width, min_height, max_width, and max_height, in order to avoid over scaling or under scaling beyond desirable limits.
