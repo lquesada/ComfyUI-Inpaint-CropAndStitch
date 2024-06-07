@@ -17,6 +17,7 @@ The main advantages of inpainting only in a masked area with these nodes are:
   - It enables downscaling before sampling if the area is too large, in order to avoid artifacts such as double heads or double bodies.
   - It enables forcing a specific resolution (e.g. 1024x1024 for SDXL models).
   - It doesn't modify the unmasked part of the image, not even passing it through VAE encode and decode.
+  - The nodes take care of good blending.
 
 # Video Tutorial
 
@@ -27,41 +28,22 @@ The main advantages of inpainting only in a masked area with these nodes are:
 ## Parameters
 - `context_expand_pixels`: how much to grow the context area (i.e. the area for the sampling) around the original mask, in pixels. This provides more context for the sampling.
 - `context_expand_factor`: how much to grow the context area (i.e. the area for the sampling) around the original mask, as a factor, e.g. 1.1 is grow 10% of the size of the mask.
-- `invert_mask`: Whether to fully invert the mask, that is, only keep what was marked, instead of removing what was marked.
 - `fill_mask_holes`: Whether to fully fill any holes (small or large) in the mask, that is, mark fully enclosed areas as part of the mask.
+- `blur_mask_pixels`: Grows the mask and blurs it by the specified amount of pixels.
+- `invert_mask`: Whether to fully invert the mask, that is, only keep what was marked, instead of removing what was marked.
+- `blend_pixels`: Grows the stitch mask and blurs it by the specified amount of pixels, so that the stitch is slowly blended and there are no seams.
 - `rescale_algorithm`: Rescale algorithm to use. bislerp is for super high quality but very slow, recommended for stich. bicubic is high quality and faster, recommended for crop.
 - `mode`: Free size, Forced size, or Ranged size.
-    - Free size uses `internal_rescale_factor` to optionally rescale the content before sampling and eventually scale back before stitching, and `padding` to align to standard sizes.
+    - Ranged size upscales the area as much as possible to make it fit the larger size between `min_width`, `max_width`, `min_height`, and `max_height`, with a `padding` to align to standard sizes, then rescales before stitching back.
     - Forced size uses `force_width` and `force_height` and upscales the content to take that size before sampling, then downscales before stitching back. Use forced size e.g. for SDXL.
-    - Ranged size is like free size but also allows setting `min_width`, `max_width`, `min_height`, and `max_height` to avoid overscaling or underscaling the area.
+    - Free size uses `rescale_factor` to optionally rescale the content before sampling and eventually scale back before stitching, and `padding` to align to standard sizes.
 
-## Example: Simple free size inpaint
-This example inpaints by sampling on a small section of the larger image. It runs ~20x faster than sampling on the whole image.
+## Example
+This example inpaints by sampling on a small section of the larger image, upscaling to fit 512x512-768x768, then stitching and blending back in the original image.
 
-Download the following example workflow from [here](inpaint-cropandstitch_example_workflow_freesize.json) or drag and drop the screenshot into ComfyUI.
+Download the following example workflow from [here](inpaint-cropandstitch_example_workflow.json) or drag and drop the screenshot into ComfyUI.
 
-![Workflow](inpaint-cropandstitch_example_workflow_freesize.png)
-
-## Example: Context mask
-This example inpaints by taking more context from a wider area by using a context mask. It's still faster than sampling on the whole image but generates content with better context.
-
-Download the following example workflow from [here](inpaint-cropandstitch_example_workflow_context_mask.json) or drag and drop the screenshot into ComfyUI.
-
-![Workflow](inpaint-cropandstitch_example_workflow_context_mask.png)
-
-## Example: Upscaled ranged size inpaint
-This example inpaints by upscaling a small section of the larger image, but keeps the image to sample between 512x512 and 768x768 (width and height separately).
-
-Download the following example workflow from [here](inpaint-cropandstitch_example_workflow_rangedsize.json) or drag and drop the screenshot into ComfyUI.
-
-![Workflow](inpaint-cropandstitch_example_workflow_rangedsize.png)
-
-## Example: Upscaled forced size inpaint
-This example inpaints by upscaling a small section of the larger image to exactly 512.
-
-Download the following example workflow from [here](inpaint-cropandstitch_example_workflow_forcedsize.json) or drag and drop the screenshot into ComfyUI.
-
-![Workflow](inpaint-cropandstitch_example_workflow_forcedsize.png)
+![Workflow](inpaint-cropandstitch_example_workflow.png)
 
 # Installation Instructions
 
@@ -70,17 +52,18 @@ Install via ComfyUI-Manager or go to the custom_nodes/ directory and run ```$ gi
 ## Best Practices
 Use an inpainting model e.g. lazymixRealAmateur_v40Inpainting.
 
-Use "VAE Encode (for Inpainting)" with grow_mask_by 12, this feathers the masks a bit.
+Use "InpaintModelConditioning" instead of "VAE Encode (for Inpainting)" to be able to set denoise values lower than 1.
 
-You may also use Set Latent Noise Mask, but then you may use KJNodes if you want to blur or feather the mask: https://github.com/kijai/ComfyUI-KJNodes/tree/main
-
-If you want to inpaint fast with SD 1.5, use free size with padding 32. You may increase rescale_factor to get more details.
+If you want to inpaint fast with SD 1.5, use ranged size with min width and height 512 and max width and height 768 with padding 32. Set high rescale_factor (e.g. 10), it will be adapted to the right resolution.
 
 If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
+## 2024-06-07
+- Added a blending radius for seamless inpainting.
+- Added a blur mask setting that grows and blurs the mask, providing better support
+Better support for InpaintModelConditioning with a new blur mask setting and with extra logic on the external-outpainted area of the image
 ## 2024-06-01
-- The node now resorts to outpainting if the context area doesn't fit in the image (e.g. for large masks that wouldn't fit in the image with the desired aspect ratio). This makes forced_size actually force the required size.
 - Force_size is now specified as separate force_width and force_height, to match any desired sampling resolution.
 - New mode: ranged size, similar to free size but also takes min_width, min_height, max_width, and max_height, in order to avoid over scaling or under scaling beyond desirable limits.
 ## 2024-05-15
