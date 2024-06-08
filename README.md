@@ -61,25 +61,26 @@ If you want to inpaint fast with SD 1.5, use ranged size with min width and heig
 If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
-## 2024-06-07
-- Added the "Extend Image for Outpainting" node that allows leveraging the power of Inpaint Crop and Stitch (rescaling, blur, blend, restitching) for Outpainting.
+## 2024-06-08
+- Added a new node: "Extend Image for Outpainting", which allows leveraging the power of Inpaint Crop and Stitch (rescaling, blur, blend, restitching) for outpainting.
 ## 2024-06-07
 - Added a blending radius for seamless inpainting.
-- Added a blur mask setting that grows and blurs the mask, providing better support
+- Added a blur mask setting that grows and blurs the mask, providing better support.
+- Updated default to ranged size.
 ## 2024-06-01
 - Force_size is now specified as separate force_width and force_height, to match any desired sampling resolution.
-- New mode: ranged size, similar to free size but also takes min_width, min_height, max_width, and max_height, in order to avoid over scaling or under scaling beyond desirable limits.
+- Added a new mode: ranged size, similar to free size but also takes min_width, min_height, max_width, and max_height, in order to avoid over scaling or under scaling beyond desirable limits.
 ## 2024-05-15
 - Depending on the selected mode ("free size" or "forced size") some fields are hidden.
 ## 2024-05-14
-- Batch support.
+- Added batch support.
 - Enabled selecting rescaling algorithm and made bicubic the default for crop, which significantly speeds up the process.
 ## 2024-05-13
 - Switched from adjust_to_preferred_sizes to modes: free size and forced size. Forced scales the section rather than growing the context area to fit preferred_sizes, to be used to e.g. force 1024x1024 for inpainting.
-- Enable internal_upscale_factor to be lower than 1 (that is, downscale), which can be used to avoid the double head issue in some models.
+- Enabled internal_upscale_factor to be lower than 1 (that is, downscale), which can be used to avoid the double head issue in some models.
 - Added padding on the croppedp image to avoid artifacts when the cropped image is not multiple of (default) 32
 ## 2024-05-12
-- Add internal_upscale_factor to upscale the image before sampling and then downsizes to stitch it back.
+- Added internal_upscale_factor to upscale the image before sampling and then downsizes to stitch it back.
 ## 2024-05-11
 - Initial commit.
 
