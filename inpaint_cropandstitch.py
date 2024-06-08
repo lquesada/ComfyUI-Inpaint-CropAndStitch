@@ -601,13 +601,25 @@ class InpaintExtendOutpaint:
         for b in range(batch_size):
             one_image = image[b].unsqueeze(0)  # Adding batch dimension
             one_mask = mask[b].unsqueeze(0)    # Adding batch dimension
-            one_context_mask = optional_context_mask[b].unsqueeze(0) if optional_context_mask is not None else None
+            one_context_mask = None
+            if optional_context_mask is not None:
+                one_context_mask = optional_context_mask[b].unsqueeze(0)
 
-
+            #Validate or initialize mask
             if one_mask.shape[1] != one_image.shape[1] or one_mask.shape[2] != one_image.shape[2]:
-                assert False, "mask size must match image size"
+                non_zero_indices = torch.nonzero(one_mask[0], as_tuple=True)
+                if not non_zero_indices[0].size(0):
+                    one_mask = torch.zeros_like(one_image[:, :, :, 0])
+                else:
+                    assert False, "mask size must match image size"
+
+            # Validate or initialize context mask
             if one_context_mask is not None and (one_context_mask.shape[1] != one_image.shape[1] or one_context_mask.shape[2] != one_image.shape[2]):
-                assert False, "context_mask size must match image size"
+                non_zero_indices = torch.nonzero(one_context_mask[0], as_tuple=True)
+                if not non_zero_indices[0].size(0):
+                    one_context_mask = torch.zeros_like(one_image[:, :, :, 0])
+                else:
+                    assert False, "context_mask size must match image size"
 
             # Get original dimensions
             orig_height, orig_width = one_image.shape[1], one_image.shape[2]
@@ -630,8 +642,6 @@ class InpaintExtendOutpaint:
                 down_padding = expand_down_pixels
                 left_padding = expand_left_pixels
                 right_padding = expand_right_pixels
-            else:
-                raise ValueError("Mode must be either 'factors' or 'pixels'")
 
             # Expand image
             new_image = torch.zeros((one_image.shape[0], new_height, new_width, one_image.shape[3]), dtype=one_image.dtype)
@@ -643,7 +653,7 @@ class InpaintExtendOutpaint:
 
             # Expand context mask if present
             if one_context_mask is not None:
-                new_context_mask = torch.ones((one_context_mask.shape[0], new_height, new_width), dtype=one_context_mask.dtype)
+                new_context_mask = torch.zeros((one_context_mask.shape[0], new_height, new_width), dtype=one_context_mask.dtype)
                 new_context_mask[:, up_padding:up_padding + orig_height, left_padding:left_padding + orig_width] = one_context_mask.squeeze(0)
 
             # Append results
