@@ -10,6 +10,8 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 
 "✂️  Inpaint Stitch" is a node that stitches the inpainted image back into the original image without altering unmasked areas.
 
+"✂️  Extend Image for Outpainting" is a node that extends an image and masks in order to use the power of Inpaint Crop and Stich (rescaling, blur, blend, restitching) for outpainting.
+
 The main advantages of inpainting only in a masked area with these nodes are:
   - It's much faster than sampling the whole image.
   - It enables setting the right amount of context from the image for the prompt to be more accurately represented in the generated picture.
@@ -59,6 +61,8 @@ If you want to inpaint fast with SD 1.5, use ranged size with min width and heig
 If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
+## 2024-06-07
+- Added the "Extend Image for Outpainting" node that allows leveraging the power of Inpaint Crop and Stitch (rescaling, blur, blend, restitching) for Outpainting.
 ## 2024-06-07
 - Added a blending radius for seamless inpainting.
 - Added a blur mask setting that grows and blurs the mask, providing better support

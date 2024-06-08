@@ -3,31 +3,51 @@ import { app } from "../../scripts/app.js";
 // Some fragments of this code are from https://github.com/LucianoCirino/efficiency-nodes-comfyui
 
 function inpaintCropHandler(node) {
-    if (node.comfyClass != "InpaintCrop") {
-        return;
-    }
-    toggleWidget(node, findWidgetByName(node, "force_width"));
-    toggleWidget(node, findWidgetByName(node, "force_height"));
-    toggleWidget(node, findWidgetByName(node, "rescale_factor"));
-    toggleWidget(node, findWidgetByName(node, "min_width"));
-    toggleWidget(node, findWidgetByName(node, "min_height"));
-    toggleWidget(node, findWidgetByName(node, "max_width"));
-    toggleWidget(node, findWidgetByName(node, "max_height"));
-    toggleWidget(node, findWidgetByName(node, "padding"));
-    if (findWidgetByName(node, "mode").value == "free size") {
-        toggleWidget(node, findWidgetByName(node, "rescale_factor"), true);
-        toggleWidget(node, findWidgetByName(node, "padding"), true);
-    }
-    else if (findWidgetByName(node, "mode").value == "ranged size") {
-        toggleWidget(node, findWidgetByName(node, "min_width"), true);
-        toggleWidget(node, findWidgetByName(node, "min_height"), true);
-        toggleWidget(node, findWidgetByName(node, "max_width"), true);
-        toggleWidget(node, findWidgetByName(node, "max_height"), true);
-        toggleWidget(node, findWidgetByName(node, "padding"), true);
-    }
-    else if (findWidgetByName(node, "mode").value == "forced size") {
-        toggleWidget(node, findWidgetByName(node, "force_width"), true);
-        toggleWidget(node, findWidgetByName(node, "force_height"), true);
+    if (node.comfyClass == "InpaintCrop") {
+        toggleWidget(node, findWidgetByName(node, "force_width"));
+        toggleWidget(node, findWidgetByName(node, "force_height"));
+        toggleWidget(node, findWidgetByName(node, "rescale_factor"));
+        toggleWidget(node, findWidgetByName(node, "min_width"));
+        toggleWidget(node, findWidgetByName(node, "min_height"));
+        toggleWidget(node, findWidgetByName(node, "max_width"));
+        toggleWidget(node, findWidgetByName(node, "max_height"));
+        toggleWidget(node, findWidgetByName(node, "padding"));
+        if (findWidgetByName(node, "mode").value == "free size") {
+            toggleWidget(node, findWidgetByName(node, "rescale_factor"), true);
+            toggleWidget(node, findWidgetByName(node, "padding"), true);
+        }
+        else if (findWidgetByName(node, "mode").value == "ranged size") {
+            toggleWidget(node, findWidgetByName(node, "min_width"), true);
+            toggleWidget(node, findWidgetByName(node, "min_height"), true);
+            toggleWidget(node, findWidgetByName(node, "max_width"), true);
+            toggleWidget(node, findWidgetByName(node, "max_height"), true);
+            toggleWidget(node, findWidgetByName(node, "padding"), true);
+        }
+        else if (findWidgetByName(node, "mode").value == "forced size") {
+            toggleWidget(node, findWidgetByName(node, "force_width"), true);
+            toggleWidget(node, findWidgetByName(node, "force_height"), true);
+        }
+    } else if (node.comfyClass == "InpaintExtendOutpaint") {
+        toggleWidget(node, findWidgetByName(node, "expand_up_pixels"));
+        toggleWidget(node, findWidgetByName(node, "expand_up_factor"));
+        toggleWidget(node, findWidgetByName(node, "expand_down_pixels"));
+        toggleWidget(node, findWidgetByName(node, "expand_down_factor"));
+        toggleWidget(node, findWidgetByName(node, "expand_left_pixels"));
+        toggleWidget(node, findWidgetByName(node, "expand_left_factor"));
+        toggleWidget(node, findWidgetByName(node, "expand_right_pixels"));
+        toggleWidget(node, findWidgetByName(node, "expand_right_factor"));
+        if (findWidgetByName(node, "mode").value == "factors") {
+            toggleWidget(node, findWidgetByName(node, "expand_up_factor"), true);
+            toggleWidget(node, findWidgetByName(node, "expand_down_factor"), true);
+            toggleWidget(node, findWidgetByName(node, "expand_left_factor"), true);
+            toggleWidget(node, findWidgetByName(node, "expand_right_factor"), true);
+        }
+        if (findWidgetByName(node, "mode").value == "pixels") {
+            toggleWidget(node, findWidgetByName(node, "expand_up_pixels"), true);
+            toggleWidget(node, findWidgetByName(node, "expand_down_pixels"), true);
+            toggleWidget(node, findWidgetByName(node, "expand_left_pixels"), true);
+            toggleWidget(node, findWidgetByName(node, "expand_right_pixels"), true);
+        }
     }
     return;
 }
