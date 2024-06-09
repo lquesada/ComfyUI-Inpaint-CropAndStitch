@@ -295,11 +295,13 @@ class InpaintCrop:
         original_width = image.shape[2]
         original_height = image.shape[1]
 
-        # If there are no non-zero indices in the context_mask, return the original image and original mask
+        # If there are no non-zero indices in the context_mask, adjust context mask to the whole image
         non_zero_indices = torch.nonzero(context_mask[0], as_tuple=True)
         if not non_zero_indices[0].size(0):
-            stitch = {'x': 0, 'y': 0, 'original_image': original_image, 'cropped_mask_blend': mask, 'rescale_x': 1.0, 'rescale_y': 1.0, 'start_x': start_x, 'start_y': start_y, 'initial_width': initial_width, 'initial_height': initial_height}
-            return (stitch, original_image, original_mask)
+            context_mask = torch.ones_like(image[:, :, :, 0])
+            context_mask = torch.zeros((mask_batch, new_height, new_width), dtype=mask.dtype)
+            context_mask[:, start_y:start_y + initial_height, start_x:start_x + initial_width] += 1.0
+            non_zero_indices = torch.nonzero(context_mask[0], as_tuple=True)
 
         # Compute context area from context mask
         y_min = torch.min(non_zero_indices[0]).item()
