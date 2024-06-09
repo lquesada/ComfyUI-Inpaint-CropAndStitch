@@ -167,6 +167,8 @@ class InpaintCrop:
         return new_min_val, new_max_val
 
     def inpaint_crop(self, image, mask, context_expand_pixels, context_expand_factor, fill_mask_holes, blur_mask_pixels, invert_mask, blend_pixels, mode, rescale_algorithm, force_width, force_height, rescale_factor, padding, min_width, min_height, max_width, max_height, optional_context_mask=None):
+        if image.shape[0] > 1:
+            assert mode == "forced size", "Mode must be 'forced size' when input is a batch of images"
         assert image.shape[0] == mask.shape[0], "Batch size of images and masks must be the same"
         if optional_context_mask is not None:
             assert optional_context_mask.shape[0] == image.shape[0], "Batch size of optional_context_masks must be the same as images or None"
