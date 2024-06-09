@@ -410,8 +410,24 @@ class InpaintCrop:
             y_min = math.floor(y_min * effective_upscale_factor_y)
             y_max = y_min + target_y_size
 
-            y_size = y_max - y_min + 1
-            x_size = x_max - x_min + 1
+        x_size = x_max - x_min + 1
+        y_size = y_max - y_min + 1
+
+        # Ensure width and height are within specified bounds, key for ranged and forced size
+        if mode == 'ranged size' or mode == 'forced size':
+            if x_size < min_width:
+                x_max = min(x_max + (min_width - x_size), width - 1)
+            elif x_size > max_width:
+                x_max = x_min + max_width - 1
+    
+            if y_size < min_height:
+                y_max = min(y_max + (min_height - y_size), height - 1)
+            elif y_size > max_height:
+                y_max = y_min + max_height - 1
+
+        # Recalculate x_size and y_size after adjustments
+        x_size = x_max - x_min + 1
+        y_size = y_max - y_min + 1
 
         # Pad area (if possible, i.e. if pad is smaller than width/height) to avoid the sampler returning smaller results
         if (mode == 'free size' or mode == 'ranged size') and padding > 1:
