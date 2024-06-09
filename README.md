@@ -23,9 +23,9 @@ The main advantages of inpainting only in a masked area with these nodes are:
 
 # Video Tutorial
 
-[![Video Tutorial](https://img.youtube.com/vi/u5cNrumkz2w/0.jpg)](https://www.youtube.com/watch?v=u5cNrumkz2w)
+[![Video Tutorial](https://img.youtube.com/vi/mI0UWm7BNtQ/0.jpg)](https://www.youtube.com/watch?v=mI0UWm7BNtQ)
 
-[(click to open in YouTube)](https://www.youtube.com/watch?v=u5cNrumkz2w)
+[(click to open in YouTube)](https://www.youtube.com/watch?v=mI0UWm7BNtQ)
 
 ## Parameters
 - `context_expand_pixels`: how much to grow the context area (i.e. the area for the sampling) around the original mask, in pixels. This provides more context for the sampling.
