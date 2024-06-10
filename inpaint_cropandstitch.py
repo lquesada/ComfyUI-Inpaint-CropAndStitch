@@ -265,17 +265,26 @@ class InpaintCrop:
         new_image = torch.zeros((initial_batch, new_height, new_width, initial_channels), dtype=image.dtype)
         new_image[:, start_y:start_y + initial_height, start_x:start_x + initial_width, :] = image
         # Mirror image so there's no bleeding of black border when using inpaintmodelconditioning
-        # top and bottom
-        new_image[:, :start_y, start_x:start_x + initial_width, :] = torch.flip(image[:, :extend_y, :, :], [1])
-        new_image[:, start_y + initial_height:, start_x:start_x + initial_width, :] = torch.flip(image[:, -extend_y:, :, :], [1])
-        # left and right
-        new_image[:, :, :start_x, :] = torch.flip(new_image[:, :, start_x:start_x + extend_x, :], [2])
-        new_image[:, :, start_x + initial_width:, :] = torch.flip(new_image[:, :, start_x + initial_width - extend_x:start_x + initial_width, :], [2])
-        # corners
-        new_image[:, :start_y, :start_x, :] = torch.flip(new_image[:, start_y:start_y + extend_y, start_x:start_x + extend_x, :], [1, 2])
-        new_image[:, :start_y, start_x + initial_width:, :] = torch.flip(new_image[:, start_y:start_y + extend_y, start_x + initial_width - extend_x:start_x + initial_width, :], [1, 2])
-        new_image[:, start_y + initial_height:, :start_x, :] = torch.flip(new_image[:, start_y + initial_height - extend_y:start_y + initial_height, start_x:start_x + extend_x, :], [1, 2])
-        new_image[:, start_y + initial_height:, start_x + initial_width:, :] = torch.flip(new_image[:, start_y + initial_height - extend_y:start_y + initial_height, start_x + initial_width - extend_x:start_x + initial_width, :], [1, 2])
+        available_top = min(start_y, initial_height)
+        available_bottom = min(new_height - (start_y + initial_height), initial_height)
+        available_left = min(start_x, initial_width)
+        available_right = min(new_width - (start_x + initial_width), initial_width)
+        # Top
+        new_image[:, start_y - available_top:start_y, start_x:start_x + initial_width, :] = torch.flip(image[:, :available_top, :, :], [1])
+        # Bottom
+        new_image[:, start_y + initial_height:start_y + initial_height + available_bottom, start_x:start_x + initial_width, :] = torch.flip(image[:, -available_bottom:, :, :], [1])
+        # Left
+        new_image[:, start_y:start_y + initial_height, start_x - available_left:start_x, :] = torch.flip(new_image[:, start_y:start_y + initial_height, start_x:start_x + available_left, :], [2])
+        # Right
+        new_image[:, start_y:start_y + initial_height, start_x + initial_width:start_x + initial_width + available_right, :] = torch.flip(new_image[:, start_y:start_y + initial_height, start_x + initial_width - available_right:start_x + initial_width, :], [2])
+        # Top-left corner
+        new_image[:, start_y - available_top:start_y, start_x - available_left:start_x, :] = torch.flip(new_image[:, start_y:start_y + available_top, start_x:start_x + available_left, :], [1, 2])
+        # Top-right corner
+        new_image[:, start_y - available_top:start_y, start_x + initial_width:start_x + initial_width + available_right, :] = torch.flip(new_image[:, start_y:start_y + available_top, start_x + initial_width - available_right:start_x + initial_width, :], [1, 2])
+        # Bottom-left corner
+        new_image[:, start_y + initial_height:start_y + initial_height + available_bottom, start_x - available_left:start_x, :] = torch.flip(new_image[:, start_y + initial_height - available_bottom:start_y + initial_height, start_x:start_x + available_left, :], [1, 2])
+        # Bottom-right corner
+        new_image[:, start_y + initial_height:start_y + initial_height + available_bottom, start_x + initial_width:start_x + initial_width + available_right, :] = torch.flip(new_image[:, start_y + initial_height - available_bottom:start_y + initial_height, start_x + initial_width - available_right:start_x + initial_width, :], [1, 2])
 
         new_mask = torch.ones((mask_batch, new_height, new_width), dtype=mask.dtype) # assume ones in extended image
         new_mask[:, start_y:start_y + initial_height, start_x:start_x + initial_width] = mask
