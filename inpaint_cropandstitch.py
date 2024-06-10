@@ -699,3 +699,131 @@ class InpaintExtendOutpaint:
             output_context_mask = torch.stack(results_context_mask, dim=0)
 
         return (output_image, output_mask, output_context_mask)
+
+
+class InpaintResize:
+    """
+    ComfyUI-InpaintCropAndStitch
+    https://github.com/lquesada/ComfyUI-InpaintCropAndStitch
+
+    This node resizes an image before inpainting with Inpaint Crop and Stitch.
+    """
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp"], {"default": "bicubic"}),
+                "mode": (["ensure minimum size", "factor"], {"default": "ensure minimum size"}),
+                "min_width": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}), # ranged
+                "min_height": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}), # ranged
+                "rescale_factor": ("FLOAT", {"default": 1.00, "min": 0.01, "max": 100.0, "step": 0.01}), # free
+            },
+            "optional": {
+                "optional_context_mask": ("MASK",),
+            }
+        }
+
+    CATEGORY = "inpaint"
+
+    RETURN_TYPES = ("IMAGE", "MASK", "MASK")
+    RETURN_NAMES = ("image", "mask", "context_mask")
+
+    FUNCTION = "inpaint_resize"
+
+    def inpaint_resize(self, image, mask, rescale_algorithm, mode, min_width, min_height, rescale_factor, optional_context_mask=None):
+        assert image.shape[0] == mask.shape[0], "Batch size of images and masks must be the same"
+        if optional_context_mask is not None:
+            assert optional_context_mask.shape[0] == image.shape[0], "Batch size of optional_context_masks must be the same as images or None"
+
+        results_image = []
+        results_mask = []
+        results_context_mask = []
+
+        batch_size = image.shape[0]
+        for b in range(batch_size):
+            one_image = image[b].unsqueeze(0)  # Adding batch dimension
+            one_mask = mask[b].unsqueeze(0)    # Adding batch dimension
+            one_context_mask = None
+            if optional_context_mask is not None:
+                one_context_mask = optional_context_mask[b].unsqueeze(0)
+
+            #Validate or initialize mask
+            if one_mask.shape[1] != one_image.shape[1] or one_mask.shape[2] != one_image.shape[2]:
+                non_zero_indices = torch.nonzero(one_mask[0], as_tuple=True)
+                if not non_zero_indices[0].size(0):
+                    one_mask = torch.zeros_like(one_image[:, :, :, 0])
+                else:
+                    assert False, "mask size must match image size"
+
+            # Validate or initialize context mask
+            if one_context_mask is not None and (one_context_mask.shape[1] != one_image.shape[1] or one_context_mask.shape[2] != one_image.shape[2]):
+                non_zero_indices = torch.nonzero(one_context_mask[0], as_tuple=True)
+                if not non_zero_indices[0].size(0):
+                    one_context_mask = torch.zeros_like(one_image[:, :, :, 0])
+                else:
+                    assert False, "context_mask size must match image size"
+
+            # Get original dimensions
+            orig_height, orig_width = one_image.shape[1], one_image.shape[2]
+
+            # Calculate target width and height
+            if mode == "ensure minimum size":
+                # Start with original dimensions
+                width = orig_width
+                height = orig_height
+
+                # If either dimension is smaller than the minimum, scale up
+                if orig_width < min_width or orig_height < min_height:
+                    aspect_ratio = orig_width / orig_height
+                    if min_width / aspect_ratio >= min_height:
+                        width = min_width
+                        height = int(min_width / aspect_ratio)
+                    else:
+                        height = min_height
+                        width = int(min_height * aspect_ratio)
+
+                # Ensure the dimensions are at least min_width and min_height
+                width = max(width, min_width)
+                height = max(height, min_height)
+
+            elif mode == "factor":
+                width = math.floor(orig_width * rescale_factor)
+                height = math.floor(orig_height * rescale_factor)
+
+            # Resize
+            if orig_width != width or orig_height != height:
+                samples = one_image            
+                samples = samples.movedim(-1, 1)
+                samples = rescale(samples, width, height, rescale_algorithm)
+                samples = samples.movedim(1, -1)
+                one_image = samples
+        
+                samples = one_mask
+                samples = samples.unsqueeze(1)
+                samples = rescale(samples, width, height, rescale_algorithm)
+                samples = samples.squeeze(1)
+                one_mask = samples
+
+                if one_context_mask is not None:
+                    samples = one_context_mask
+                    samples = samples.unsqueeze(1)
+                    samples = rescale(samples, width, height, rescale_algorithm)
+                    samples = samples.squeeze(1)
+                    one_context_mask = samples
+
+            # Append results
+            results_image.append(one_image.squeeze(0))
+            results_mask.append(one_mask.squeeze(0))
+            if one_context_mask is not None:
+                results_context_mask.append(one_context_mask.squeeze(0))
+
+        # Stack the results to form batches
+        output_image = torch.stack(results_image, dim=0)
+        output_mask = torch.stack(results_mask, dim=0)
+        output_context_mask = None
+        if optional_context_mask is not None:
+            output_context_mask = torch.stack(results_context_mask, dim=0)
+
+        return (output_image, output_mask, output_context_mask)

@@ -12,6 +12,8 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 
 "✂️  Extend Image for Outpainting" is a node that extends an image and masks in order to use the power of Inpaint Crop and Stich (rescaling, blur, blend, restitching) for outpainting.
 
+"✂️  Resize Image Before Inpainting" is a node that resizes an image before inpainting, for example to upscale it to keep more detail than in the original image.
+
 The main advantages of inpainting only in a masked area with these nodes are:
   - It's much faster than sampling the whole image.
   - It enables setting the right amount of context from the image for the prompt to be more accurately represented in the generated picture.
@@ -61,6 +63,8 @@ If you want to inpaint fast with SD 1.5, use ranged size with min width and heig
 If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
+## 2024-06-10
+- Added a new node: "Resize Image Before Inpainting", which allows increasing the resolution of the input image by a factor or to a minimum width or height to obtain higher resolution inpaintings.
 ## 2024-06-08
 - Added a new node: "Extend Image for Outpainting", which allows leveraging the power of Inpaint Crop and Stitch (rescaling, blur, blend, restitching) for outpainting.
 ## 2024-06-07

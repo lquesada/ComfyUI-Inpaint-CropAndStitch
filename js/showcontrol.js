@@ -2,7 +2,7 @@ import { app } from "../../scripts/app.js";
 
 // Some fragments of this code are from https://github.com/LucianoCirino/efficiency-nodes-comfyui
 
-function inpaintCropHandler(node) {
+function inpaintCropAndStitchHandler(node) {
     if (node.comfyClass == "InpaintCrop") {
         toggleWidget(node, findWidgetByName(node, "force_width"));
         toggleWidget(node, findWidgetByName(node, "force_height"));
@@ -48,6 +48,17 @@ function inpaintCropHandler(node) {
             toggleWidget(node, findWidgetByName(node, "expand_left_pixels"), true);
             toggleWidget(node, findWidgetByName(node, "expand_right_pixels"), true);
         }
+    } else if (node.comfyClass == "InpaintResize") {
+        toggleWidget(node, findWidgetByName(node, "min_width"));
+        toggleWidget(node, findWidgetByName(node, "min_height"));
+        toggleWidget(node, findWidgetByName(node, "rescale_factor"));
+        if (findWidgetByName(node, "mode").value == "ensure minimum size") {
+            toggleWidget(node, findWidgetByName(node, "min_width"), true);
+            toggleWidget(node, findWidgetByName(node, "min_height"), true);
+        }
+        else if (findWidgetByName(node, "mode").value == "factor") {
+            toggleWidget(node, findWidgetByName(node, "rescale_factor"), true);
+        }
     }
     return;
 }
@@ -89,7 +100,7 @@ function toggleWidget(node, widget, show = false, suffix = "") {
 app.registerExtension({
     name: "inpaint-cropandstitch.showcontrol",
     nodeCreated(node) {
-        inpaintCropHandler(node);
+        inpaintCropAndStitchHandler(node);
         for (const w of node.widgets || []) {
             let widgetValue = w.value;
 
@@ -114,7 +125,7 @@ app.registerExtension({
                         widgetValue = newVal;
                     }
 
-                    inpaintCropHandler(node);
+                    inpaintCropAndStitchHandler(node);
                 }
             });
         }
