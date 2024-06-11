@@ -342,6 +342,8 @@ class InpaintCrop:
             min_height = max_height = force_height
 
         if mode == 'ranged size' or mode == 'forced size':
+            assert max_width >= min_width, "max_width must be greater than or equal to min_width"
+            assert max_height >= min_height, "max_height must be greater than or equal to min_height"
             # Ensure we set an aspect ratio supported by min_width, max_width, min_height, max_height
             current_width = x_max - x_min + 1
             current_height = y_max - y_min + 1
