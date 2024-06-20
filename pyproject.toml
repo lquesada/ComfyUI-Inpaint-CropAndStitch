@@ -9,6 +9,6 @@ Repository = "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "lquesada"
 DisplayName = "ComfyUI-Inpaint-CropAndStitch"
 Icon = ""
