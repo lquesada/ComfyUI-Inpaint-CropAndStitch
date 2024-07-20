@@ -400,13 +400,13 @@ class InpaintCrop:
 
             samples = mask
             samples = samples.unsqueeze(1)
-            samples = rescale(samples, width, height, rescale_algorithm)
+            samples = rescale(samples, width, height, "nearest")
             samples = samples.squeeze(1)
             mask = samples
 
             samples = blend_mask
             samples = samples.unsqueeze(1)
-            samples = rescale(samples, width, height, rescale_algorithm)
+            samples = rescale(samples, width, height, "nearest")
             samples = samples.squeeze(1)
             blend_mask = samples
 
@@ -840,14 +840,14 @@ class InpaintResize:
         
                 samples = one_mask
                 samples = samples.unsqueeze(1)
-                samples = rescale(samples, width, height, rescale_algorithm)
+                samples = rescale(samples, width, height, "nearest")
                 samples = samples.squeeze(1)
                 one_mask = samples
 
                 if one_context_mask is not None:
                     samples = one_context_mask
                     samples = samples.unsqueeze(1)
-                    samples = rescale(samples, width, height, rescale_algorithm)
+                    samples = rescale(samples, width, height, "nearest")
                     samples = samples.squeeze(1)
                     one_context_mask = samples
 
