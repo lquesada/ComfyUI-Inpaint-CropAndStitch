@@ -390,8 +390,8 @@ class InpaintCrop:
         if rescale_factor < 0.999 or rescale_factor > 1.001:
             samples = image            
             samples = samples.movedim(-1, 1)
-            width = math.floor(samples.shape[3] * rescale_factor)
-            height = math.floor(samples.shape[2] * rescale_factor)
+            width = round(samples.shape[3] * rescale_factor)
+            height = round(samples.shape[2] * rescale_factor)
             samples = rescale(samples, width, height, rescale_algorithm)
             effective_upscale_factor_x = float(width)/float(original_width)
             effective_upscale_factor_y = float(height)/float(original_height)
@@ -416,9 +416,9 @@ class InpaintCrop:
             target_x_size = int(x_size * effective_upscale_factor_x)
             target_y_size = int(y_size * effective_upscale_factor_y)
 
-            x_min = math.floor(x_min * effective_upscale_factor_x)
+            x_min = round(x_min * effective_upscale_factor_x)
             x_max = x_min + target_x_size
-            y_min = math.floor(y_min * effective_upscale_factor_y)
+            y_min = round(y_min * effective_upscale_factor_y)
             y_max = y_min + target_y_size
 
         x_size = x_max - x_min + 1
@@ -563,10 +563,12 @@ class InpaintStitch:
         # Downscale inpainted before stitching if we upscaled it before
         if stitch['rescale_x'] < 0.999 or stitch['rescale_x'] > 1.001 or stitch['rescale_y'] < 0.999 or stitch['rescale_y'] > 1.001:
             samples = inpainted_image.movedim(-1, 1)
-            width = round(float(inpaint_width)/stitch['rescale_x'])
-            height = round(float(inpaint_height)/stitch['rescale_y'])
-            x = round(float(x)/stitch['rescale_x'])
-            y = round(float(y)/stitch['rescale_y'])
+
+            width = math.ceil(float(inpaint_width)/stitch['rescale_x'])+1
+            height = math.ceil(float(inpaint_height)/stitch['rescale_y'])+1
+            x = math.floor(float(x)/stitch['rescale_x'])
+            y = math.floor(float(y)/stitch['rescale_y'])
+
             samples = rescale(samples, width, height, rescale_algorithm)
             inpainted_image = samples.movedim(1, -1)
             
@@ -575,6 +577,7 @@ class InpaintStitch:
             samples = rescale(samples, width, height, rescale_algorithm)
             samples = samples.squeeze(0)
             cropped_mask_blend = samples.movedim(1, -1)
+            cropped_mask_blend = torch.clamp(cropped_mask_blend, 0.0, 1.0)
 
         output = self.composite(stitched_image, inpainted_image.movedim(-1, 1), x, y, cropped_mask_blend, 1).movedim(1, -1)
 
@@ -827,8 +830,8 @@ class InpaintResize:
                 height = max(height, min_height)
 
             elif mode == "factor":
-                width = math.floor(orig_width * rescale_factor)
-                height = math.floor(orig_height * rescale_factor)
+                width = round(orig_width * rescale_factor)
+                height = round(orig_height * rescale_factor)
 
             # Resize
             if orig_width != width or orig_height != height:
