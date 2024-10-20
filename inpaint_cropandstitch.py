@@ -262,13 +262,14 @@ class InpaintCrop:
         start_y = extend_y
         start_x = extend_x
 
-        new_image = torch.zeros((initial_batch, new_height, new_width, initial_channels), dtype=image.dtype)
-        new_image[:, start_y:start_y + initial_height, start_x:start_x + initial_width, :] = image
-        # Mirror image so there's no bleeding of black border when using inpaintmodelconditioning
         available_top = min(start_y, initial_height)
         available_bottom = min(new_height - (start_y + initial_height), initial_height)
         available_left = min(start_x, initial_width)
         available_right = min(new_width - (start_x + initial_width), initial_width)
+
+        new_image = torch.zeros((initial_batch, new_height, new_width, initial_channels), dtype=image.dtype)
+        new_image[:, start_y:start_y + initial_height, start_x:start_x + initial_width, :] = image
+        # Mirror image so there's no bleeding of black border when using inpaintmodelconditioning
         # Top
         new_image[:, start_y - available_top:start_y, start_x:start_x + initial_width, :] = torch.flip(image[:, :available_top, :, :], [1])
         # Bottom
@@ -291,6 +292,23 @@ class InpaintCrop:
 
         blend_mask = torch.zeros((mask_batch, new_height, new_width), dtype=mask.dtype) # assume zeros in extended image
         blend_mask[:, start_y:start_y + initial_height, start_x:start_x + initial_width] = mask
+        # Mirror blend mask so there's no bleeding of border when blending
+        # Top
+        blend_mask[:, start_y - available_top:start_y, start_x:start_x + initial_width] = torch.flip(mask[:, :available_top, :], [1])
+        # Bottom
+        blend_mask[:, start_y + initial_height:start_y + initial_height + available_bottom, start_x:start_x + initial_width] = torch.flip(mask[:, -available_bottom:, :], [1])
+        # Left
+        blend_mask[:, start_y:start_y + initial_height, start_x - available_left:start_x] = torch.flip(blend_mask[:, start_y:start_y + initial_height, start_x:start_x + available_left], [2])
+        # Right
+        blend_mask[:, start_y:start_y + initial_height, start_x + initial_width:start_x + initial_width + available_right] = torch.flip(blend_mask[:, start_y:start_y + initial_height, start_x + initial_width - available_right:start_x + initial_width], [2])
+        # Top-left corner
+        blend_mask[:, start_y - available_top:start_y, start_x - available_left:start_x] = torch.flip(blend_mask[:, start_y:start_y + available_top, start_x:start_x + available_left], [1, 2])
+        # Top-right corner
+        blend_mask[:, start_y - available_top:start_y, start_x + initial_width:start_x + initial_width + available_right] = torch.flip(blend_mask[:, start_y:start_y + available_top, start_x + initial_width - available_right:start_x + initial_width], [1, 2])
+        # Bottom-left corner
+        blend_mask[:, start_y + initial_height:start_y + initial_height + available_bottom, start_x - available_left:start_x] = torch.flip(blend_mask[:, start_y + initial_height - available_bottom:start_y + initial_height, start_x:start_x + available_left], [1, 2])
+        # Bottom-right corner
+        blend_mask[:, start_y + initial_height:start_y + initial_height + available_bottom, start_x + initial_width:start_x + initial_width + available_right] = torch.flip(blend_mask[:, start_y + initial_height - available_bottom:start_y + initial_height, start_x + initial_width - available_right:start_x + initial_width], [1, 2])
 
         new_context_mask = torch.zeros((mask_batch, new_height, new_width), dtype=context_mask.dtype)
         new_context_mask[:, start_y:start_y + initial_height, start_x:start_x + initial_width] = context_mask
