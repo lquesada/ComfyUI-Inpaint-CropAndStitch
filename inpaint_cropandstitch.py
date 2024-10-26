@@ -3,17 +3,16 @@ import math
 import nodes
 import numpy as np
 import torch
+import torchvision.transforms.functional as F
+from PIL import Image
 from scipy.ndimage import gaussian_filter, grey_dilation, binary_fill_holes, binary_closing
 
-def rescale(samples, width, height, algorithm):
-    if algorithm == "nearest":
-        return torch.nn.functional.interpolate(samples, size=(height, width), mode="nearest")
-    elif algorithm == "bilinear":
-        return torch.nn.functional.interpolate(samples, size=(height, width), mode="bilinear")
-    elif algorithm == "bicubic":
-        return torch.nn.functional.interpolate(samples, size=(height, width), mode="bicubic")
-    elif algorithm == "bislerp":
-        return comfy.utils.bislerp(samples, width, height)
+def rescale(samples, width, height, algorithm: str):
+    if algorithm == "bislerp":  # convert for compatibility with old workflows
+        algorithm = "bicubic"
+    algorithm = getattr(Image, algorithm.upper())  # i.e. Image.BICUBIC
+    samples_pil: Image.Image = F.to_pil_image(samples[0].cpu()).resize((width, height), algorithm)
+    samples = F.to_tensor(samples_pil).unsqueeze(0)
     return samples
 
 class InpaintCrop:
@@ -38,7 +37,7 @@ class InpaintCrop:
                 "blur_mask_pixels": ("FLOAT", {"default": 16.0, "min": 0.0, "max": 64.0, "step": 0.1}),
                 "invert_mask": ("BOOLEAN", {"default": False}),
                 "blend_pixels": ("FLOAT", {"default": 16.0, "min": 0.0, "max": 32.0, "step": 0.1}),
-                "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp"], {"default": "bicubic"}),
+                "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp", "lanczos", "box", "hamming"], {"default": "bicubic"}),
                 "mode": (["ranged size", "forced size", "free size"], {"default": "ranged size"}),
                 "force_width": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}), # force
                 "force_height": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}), # force
@@ -497,7 +496,7 @@ class InpaintStitch:
             "required": {
                 "stitch": ("STITCH",),
                 "inpainted_image": ("IMAGE",),
-                "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp"], {"default": "bislerp"}),
+                "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp", "lanczos", "box", "hamming"], {"default": "bislerp"}),
             }
         }
 
@@ -773,7 +772,7 @@ class InpaintResize:
             "required": {
                 "image": ("IMAGE",),
                 "mask": ("MASK",),
-                "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp"], {"default": "bicubic"}),
+                "rescale_algorithm": (["nearest", "bilinear", "bicubic", "bislerp", "lanczos", "box", "hamming"], {"default": "bicubic"}),
                 "mode": (["ensure minimum size", "factor"], {"default": "ensure minimum size"}),
                 "min_width": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}), # ranged
                 "min_height": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}), # ranged
