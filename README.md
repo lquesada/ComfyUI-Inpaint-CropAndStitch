@@ -42,12 +42,26 @@ The main advantages of inpainting only in a masked area with these nodes are:
     - Forced size uses `force_width` and `force_height` and upscales the content to take that size before sampling, then downscales before stitching back. Use forced size e.g. for SDXL.
     - Free size uses `rescale_factor` to optionally rescale the content before sampling and eventually scale back before stitching, and `padding` to align to standard sizes.
 
-## Example
+## Example (Stable Diffusion)
 This example inpaints by sampling on a small section of the larger image, upscaling to fit 512x512-768x768, then stitching and blending back in the original image.
 
 Download the following example workflow from [here](inpaint-cropandstitch_example_workflow.json) or drag and drop the screenshot into ComfyUI.
 
 ![Workflow](inpaint-cropandstitch_example_workflow.png)
+
+## Example (Flux)
+This example uses Flux. Requires the GGUF nodes.
+
+Models used:
+
+- Flux Dev Q5 GGUF from [here](https://civitai.com/models/711483/flux-dev-q5km-gguf-quantization-a-nice-balance-of-speed-and-quality-in-under-9-gigabytes?modelVersionId=795785). Put it in models/unet/. This model works with 4 steps.
+- `t5 GGUF Q3_K_L` from [here](https://huggingface.co/city96/t5-v1_1-xxl-encoder-gguf/tree/main). Put it in models/clip/.
+- `clip_l` from [here](https://huggingface.co/comfyanonymous/flux_text_encoders/blob/main/clip_l.safetensors). Put it in models/clip/.
+- ae VAE from [here](https://huggingface.co/black-forest-labs/FLUX.1-schnell/blob/main/ae.safetensors). Put it in models/vae/
+
+Download the following example workflow from [here](inpaint-cropandstitch_flux_example_workflow.json) or drag and drop the screenshot into ComfyUI.
+
+![Workflow](inpaint-cropandstitch_flux_example_workflow.png)
 
 # Installation Instructions
 
@@ -63,6 +77,8 @@ If you want to inpaint fast with SD 1.5, use ranged size with min width and heig
 If you want to inpaint with SDXL, use forced size = 1024.
 
 # Changelog
+## 2024-10-28
+- Added a new example workflow for inpainting with flux.
 ## 2024-06-10
 - Added a new node: "Resize Image Before Inpainting", which allows increasing the resolution of the input image by a factor or to a minimum width or height to obtain higher resolution inpaintings.
 ## 2024-06-08
