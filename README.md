@@ -77,6 +77,9 @@ If you want to inpaint fast with SD 1.5, use ranged size with min width and heig
 
 If you want to inpaint with SDXL, use forced size = 1024.
 
+# Known Issues
+The image is resized (e.g. upsized) before cropping the inpaint and context area. If the mask is too small compared to the image, the crop node will try to resize the image to a very large size first, which is memory inefficient and would cause a memory overflow. See https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch/issues/42
+
 # Changelog
 ## 2024-10-28
 - Added a new example workflow for inpainting with flux.
