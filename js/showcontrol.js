@@ -105,7 +105,8 @@ app.registerExtension({
             let widgetValue = w.value;
 
             // Store the original descriptor if it exists 
-            let originalDescriptor = Object.getOwnPropertyDescriptor(w, 'value');
+            let originalDescriptor = Object.getOwnPropertyDescriptor(w, 'value') || 
+                Object.getOwnPropertyDescriptor(Object.getPrototypeOf(w), 'value');
 
             Object.defineProperty(w, 'value', {
                 get() {
