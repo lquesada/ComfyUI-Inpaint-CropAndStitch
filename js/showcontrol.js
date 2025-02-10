@@ -100,6 +100,9 @@ function toggleWidget(node, widget, show = false, suffix = "") {
 app.registerExtension({
     name: "inpaint-cropandstitch.showcontrol",
     nodeCreated(node) {
+        if (node.comfyClass !== "InpaintCrop")
+            return;
+        
         inpaintCropAndStitchHandler(node);
         for (const w of node.widgets || []) {
             let widgetValue = w.value;
@@ -118,7 +121,6 @@ app.registerExtension({
                     return valueToReturn;
                 },
                 set(newVal) {
-
                     // If there's an original setter, use it. Otherwise, set widgetValue.
                     if (originalDescriptor && originalDescriptor.set) {
                         originalDescriptor.set.call(w, newVal);
