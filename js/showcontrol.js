@@ -100,12 +100,16 @@ function toggleWidget(node, widget, show = false, suffix = "") {
 app.registerExtension({
     name: "inpaint-cropandstitch.showcontrol",
     nodeCreated(node) {
+        if (node.comfyClass !== "InpaintCrop")
+            return;
+        
         inpaintCropAndStitchHandler(node);
         for (const w of node.widgets || []) {
             let widgetValue = w.value;
 
             // Store the original descriptor if it exists 
-            let originalDescriptor = Object.getOwnPropertyDescriptor(w, 'value');
+            let originalDescriptor = Object.getOwnPropertyDescriptor(w, 'value') || 
+                Object.getOwnPropertyDescriptor(Object.getPrototypeOf(w), 'value');
 
             Object.defineProperty(w, 'value', {
                 get() {
@@ -117,7 +121,6 @@ app.registerExtension({
                     return valueToReturn;
                 },
                 set(newVal) {
-
                     // If there's an original setter, use it. Otherwise, set widgetValue.
                     if (originalDescriptor && originalDescriptor.set) {
                         originalDescriptor.set.call(w, newVal);
