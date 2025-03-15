@@ -100,9 +100,10 @@ function toggleWidget(node, widget, show = false, suffix = "") {
 app.registerExtension({
     name: "inpaint-cropandstitch.showcontrol",
     nodeCreated(node) {
-        if (node.comfyClass !== "InpaintCrop")
+        if (!node.comfyClass.startsWith("Inpaint")) {
             return;
-        
+        }
+
         inpaintCropAndStitchHandler(node);
         for (const w of node.widgets || []) {
             let widgetValue = w.value;
