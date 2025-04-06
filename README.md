@@ -84,9 +84,9 @@ Enable "resize to target size" and set it to a preferred resolution for your mod
 - Improved: Images are now cropped before being resized. In the past, they were resized before being cropped. This triggered crashes when the input image was large and the masked area was small.
 - Improved: Images are now not extended more than necessary. In the past, they were extended x3, which was memory inefficient.
 - Improved: The cropped area will stay inside of the image if possible. In the past, the cropped area was centered around the mask and would go out of the image even if not needed.
-- Improved: fill mask holes will now keep the mask as float values. In the past, it turned the mask into binary (yes/no only).
+- Improved: Fill mask holes will now keep the mask as float values. In the past, it turned the mask into binary (yes/no only).
 - Improved: Added a hipass filter for mask that ignores values below a threshold. In the past, sometimes mask with a 0.01 value (basically black / no mask) would be considered mask, which was very confusing to users.
-- Improved: In the (now) rare case that extending out of the image is needed, instead of mirroring the original image, the edges are extended. Mirroring caused confusion among users in the past.
+- Improved: In the (now rare) case that extending out of the image is needed, instead of mirroring the original image, the edges are extended. Mirroring caused confusion among users in the past.
 - Improved: Integrated preresize and extend for outpainting in the crop node. In the past, they were external and could interact weirdly with features, e.g. expanding for outpainting on the four directions and having "fill_mask_holes" would cause the mask to be fully set across the whole image.
 - Improved: Now works when passing one mask for several images or one image for several masks.
 - UX: Streamlined many options, e.g. merged the blur and blend features in a single parameter, removed the ranged size option, removed context_expand_pixels as factor is more intuitive, etc.
