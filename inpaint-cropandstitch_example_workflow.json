@@ -1,6 +1,6 @@
 {
-  "last_node_id": 24,
-  "last_link_id": 47,
+  "last_node_id": 26,
+  "last_link_id": 55,
   "nodes": [
     {
       "id": 12,
@@ -9,12 +9,12 @@
         1050,
         910
       ],
-      "size": {
-        "0": 302.3999938964844,
-        "1": 120
-      },
+      "size": [
+        302.3999938964844,
+        120
+      ],
       "flags": {},
-      "order": 5,
+      "order": 4,
       "mode": 0,
       "inputs": [
         {
@@ -28,15 +28,17 @@
         {
           "name": "CONDITIONING",
           "type": "CONDITIONING",
+          "shape": 3,
           "links": [
             38
           ],
-          "shape": 3,
           "slot_index": 0
         }
       ],
       "title": "CLIP Text Encode (Prompt) - Negative",
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
@@ -52,10 +54,10 @@
         1130,
         340
       ],
-      "size": {
-        "0": 216.59999084472656,
-        "1": 106
-      },
+      "size": [
+        216.59999084472656,
+        138
+      ],
       "flags": {},
       "order": 6,
       "mode": 0,
@@ -78,212 +80,51 @@
         {
           "name": "pixels",
           "type": "IMAGE",
-          "link": 42
+          "link": 50
         },
         {
           "name": "mask",
           "type": "MASK",
-          "link": 43
+          "link": 51
         }
       ],
       "outputs": [
         {
           "name": "positive",
           "type": "CONDITIONING",
+          "shape": 3,
           "links": [
             39
           ],
-          "shape": 3,
           "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
+          "shape": 3,
           "links": [
             40
           ],
-          "shape": 3,
           "slot_index": 1
         },
         {
           "name": "latent",
           "type": "LATENT",
+          "shape": 3,
           "links": [
             41
           ],
-          "shape": 3,
           "slot_index": 2
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "InpaintModelConditioning"
-      }
-    },
-    {
-      "id": 1,
-      "type": "InpaintCrop",
-      "pos": [
-        570,
-        110
-      ],
-      "size": {
-        "0": 320,
-        "1": 390
-      },
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 1
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 2
-        },
-        {
-          "name": "optional_context_mask",
-          "type": "MASK",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "stitch",
-          "type": "STITCH",
-          "links": [
-            8
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "cropped_image",
-          "type": "IMAGE",
-          "links": [
-            42
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "cropped_mask",
-          "type": "MASK",
-          "links": [
-            43
-          ],
-          "shape": 3,
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintCrop"
       },
       "widgets_values": [
-        20,
-        1,
-        true,
-        16,
-        false,
-        16,
-        "bicubic",
-        "ranged size",
-        1024,
-        1024,
-        1,
-        512,
-        512,
-        768,
-        768,
-        32
+        true
       ]
-    },
-    {
-      "id": 3,
-      "type": "LoadImage",
-      "pos": [
-        90,
-        110
-      ],
-      "size": {
-        "0": 400,
-        "1": 500
-      },
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            1
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            2
-          ],
-          "shape": 3,
-          "slot_index": 1
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "clipspace/clipspace-mask-3854583.0999999642.png [input]",
-        "image"
-      ]
-    },
-    {
-      "id": 11,
-      "type": "CLIPTextEncode",
-      "pos": [
-        1050,
-        700
-      ],
-      "size": {
-        "0": 310,
-        "1": 140
-      },
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 21
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            37
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "title": "CLIP Text Encode (Prompt) - Positive",
-      "properties": {
-        "Node name for S&R": "CLIPTextEncode"
-      },
-      "widgets_values": [
-        "a cloud in the sky"
-      ],
-      "color": "#232",
-      "bgcolor": "#353"
     },
     {
       "id": 10,
@@ -297,40 +138,43 @@
         100
       ],
       "flags": {},
-      "order": 1,
+      "order": 0,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "MODEL",
           "type": "MODEL",
+          "shape": 3,
           "links": [
             28
           ],
-          "shape": 3,
           "slot_index": 0
         },
         {
           "name": "CLIP",
           "type": "CLIP",
+          "shape": 3,
           "links": [
             21,
             24
           ],
-          "shape": 3,
           "slot_index": 1
         },
         {
           "name": "VAE",
           "type": "VAE",
+          "shape": 3,
           "links": [
             32,
             44
           ],
-          "shape": 3,
           "slot_index": 2
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "CheckpointLoaderSimple"
       },
       "widgets_values": [
@@ -355,12 +199,16 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 12
+          "link": 54
         }
       ],
+      "outputs": [],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "PreviewImage"
-      }
+      },
+      "widgets_values": []
     },
     {
       "id": 14,
@@ -403,18 +251,20 @@
         {
           "name": "LATENT",
           "type": "LATENT",
+          "shape": 3,
           "links": [
             33
           ],
-          "shape": 3,
           "slot_index": 0
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "KSampler"
       },
       "widgets_values": [
-        908511891192116,
+        900559780374547,
         "randomize",
         20,
         8,
@@ -424,40 +274,16 @@
       ]
     },
     {
-      "id": 22,
-      "type": "Note",
-      "pos": [
-        40,
-        680
-      ],
-      "size": [
-        500,
-        470
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "title": "Instructions",
-      "properties": {
-        "text": ""
-      },
-      "widgets_values": [
-        "Simplest way to run:\n\n1. Load desired image in the \"Load Image\" node and mask the area you want to replace.\n\n2. Select a checkpoint for inpainting in the \"Load Checkpoint\" node.\n\n3. Write the positive and negative prompts in the green and red boxes. These prompts do not have to match the whole image, but only the masked area.\n\n4. Adjust denoise (e.g. 1 to fully replace the content, ~0.8 to keep part of it, 0.1 to match around.\n\n5. Run!\n\n\n\nHow to increase the context area for the model to know better what to draw:\n- Option 1: Increase context_expand_factor, e.g. set it to 2.\n- Option 2: Increase context_expand_pixels, e.g. set it to 100.\n- Option 3: Duplicate the load image node and connect its mask to \"optional_context_mask\" in the \"Inpaint Crop node\". Mask the area that is relevant for context (no need to fill it, only the corners of the masked area matter.\n\n\n\nThe default parameters for Inpaint Crop and Inpaint Stitch work well for most inpainting tasks.\n\nFor SDXL, try the \"forced size\" mode which forces 1024x1024."
-      ],
-      "color": "#432",
-      "bgcolor": "#653"
-    },
-    {
       "id": 15,
       "type": "VAEDecode",
       "pos": [
         1520,
         360
       ],
-      "size": {
-        "0": 210,
-        "1": 46
-      },
+      "size": [
+        210,
+        46
+      ],
       "flags": {},
       "order": 8,
       "mode": 0,
@@ -479,41 +305,44 @@
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": [
-            34
-          ],
           "shape": 3,
+          "links": [
+            55
+          ],
           "slot_index": 0
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "VAEDecode"
-      }
+      },
+      "widgets_values": []
     },
     {
-      "id": 2,
-      "type": "InpaintStitch",
+      "id": 26,
+      "type": "InpaintStitchImproved",
       "pos": [
-        1670,
+        1640,
         110
       ],
-      "size": {
-        "0": 210,
-        "1": 78
-      },
+      "size": [
+        235.1999969482422,
+        46
+      ],
       "flags": {},
       "order": 9,
       "mode": 0,
       "inputs": [
         {
-          "name": "stitch",
-          "type": "STITCH",
-          "link": 8
+          "name": "stitcher",
+          "type": "STITCHER",
+          "link": 52
         },
         {
           "name": "inpainted_image",
           "type": "IMAGE",
-          "link": 34
+          "link": 55
         }
       ],
       "outputs": [
@@ -521,53 +350,221 @@
           "name": "image",
           "type": "IMAGE",
           "links": [
-            12
+            54
           ],
-          "shape": 3,
           "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "InpaintStitch"
+        "Node name for S&R": "InpaintStitchImproved"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        90,
+        110
+      ],
+      "size": [
+        400,
+        500
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "shape": 3,
+          "links": [
+            48
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "shape": 3,
+          "links": [
+            49
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "bislerp"
+        "clipspace/clipspace-mask-324879.39999999106.png [input]",
+        "image"
       ]
+    },
+    {
+      "id": 22,
+      "type": "Note",
+      "pos": [
+        40,
+        680
+      ],
+      "size": [
+        500,
+        470
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Instructions",
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "Simplest way to run:\n\n1. Load desired image in the \"Load Image\" node and mask the area you want to replace.\n\n2. Select a checkpoint for inpainting in the \"Load Checkpoint\" node.\n\n3. Write the positive and negative prompts in the green and red boxes. These prompts do not have to match the whole image, but only the masked area.\n\n4. Adjust denoise (e.g. 1 to fully replace the content, ~0.8 to keep part of it, 0.1 to match around.\n\n5. Run!\n\n\n\nHow to increase the context area for the model to know better what to draw:\n- Option 1: Increase context_expand_factor, e.g. set it to 2.\n- Option 2: Duplicate the load image node and connect its mask to \"optional_context_mask\" in the \"Inpaint Crop\" node. Mask the area that is relevant for context (no need to fill it, only the corners of the masked area matter.\n\n\n\nThe default parameters for Inpaint Crop and Inpaint Stitch work well for most inpainting tasks.\n\nFor SDXL or Flux, increase output_target_width and output_target_height to 1024."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 25,
+      "type": "InpaintCropImproved",
+      "pos": [
+        620,
+        110
+      ],
+      "size": [
+        390,
+        410
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 48
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "shape": 7,
+          "link": 49
+        },
+        {
+          "name": "optional_context_mask",
+          "type": "MASK",
+          "shape": 7,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "stitcher",
+          "type": "STITCHER",
+          "links": [
+            52
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "cropped_image",
+          "type": "IMAGE",
+          "links": [
+            50
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "cropped_mask",
+          "type": "MASK",
+          "links": [
+            51
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InpaintCropImproved"
+      },
+      "widgets_values": [
+        "bilinear",
+        "bicubic",
+        false,
+        "ensure minimum resolution",
+        1024,
+        1024,
+        16384,
+        16384,
+        true,
+        0,
+        false,
+        32,
+        0.1,
+        false,
+        1,
+        1,
+        1,
+        1,
+        2.0000000000000004,
+        true,
+        512,
+        512,
+        "32"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1050,
+        700
+      ],
+      "size": [
+        310,
+        140
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "shape": 3,
+          "links": [
+            37
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "CLIP Text Encode (Prompt) - Positive",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "metal cap covering a bottle, watercolor painting"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
     }
   ],
   "links": [
-    [
-      1,
-      3,
-      0,
-      1,
-      0,
-      "IMAGE"
-    ],
-    [
-      2,
-      3,
-      1,
-      1,
-      1,
-      "MASK"
-    ],
-    [
-      8,
-      1,
-      0,
-      2,
-      0,
-      "STITCH"
-    ],
-    [
-      12,
-      2,
-      0,
-      7,
-      0,
-      "IMAGE"
-    ],
     [
       21,
       10,
@@ -607,14 +604,6 @@
       15,
       0,
       "LATENT"
-    ],
-    [
-      34,
-      15,
-      0,
-      2,
-      1,
-      "IMAGE"
     ],
     [
       37,
@@ -657,40 +646,81 @@
       "LATENT"
     ],
     [
-      42,
-      1,
-      1,
-      19,
-      3,
-      "IMAGE"
-    ],
-    [
-      43,
-      1,
-      2,
-      19,
-      4,
-      "MASK"
-    ],
-    [
       44,
       10,
       2,
       19,
       2,
       "VAE"
+    ],
+    [
+      48,
+      3,
+      0,
+      25,
+      0,
+      "IMAGE"
+    ],
+    [
+      49,
+      3,
+      1,
+      25,
+      1,
+      "MASK"
+    ],
+    [
+      50,
+      25,
+      1,
+      19,
+      3,
+      "IMAGE"
+    ],
+    [
+      51,
+      25,
+      2,
+      19,
+      4,
+      "MASK"
+    ],
+    [
+      52,
+      25,
+      0,
+      26,
+      0,
+      "STITCHER"
+    ],
+    [
+      54,
+      26,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      55,
+      15,
+      0,
+      26,
+      1,
+      "IMAGE"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.8140274938684023,
+      "scale": 0.6830134553650709,
       "offset": [
-        396.91895028601795,
-        199.25272158221236
+        259.9247209661792,
+        171.64611986059646
       ]
-    }
+    },
+    "ue_links": []
   },
   "version": 0.4
 }

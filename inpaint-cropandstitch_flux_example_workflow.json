@@ -1,18 +1,18 @@
 {
-  "last_node_id": 85,
-  "last_link_id": 160,
+  "last_node_id": 87,
+  "last_link_id": 174,
   "nodes": [
     {
       "id": 25,
       "type": "VAELoader",
-      "pos": {
-        "0": 620,
-        "1": 1120
-      },
-      "size": {
-        "0": 315,
-        "1": 58
-      },
+      "pos": [
+        620,
+        1120
+      ],
+      "size": [
+        315,
+        58
+      ],
       "flags": {},
       "order": 0,
       "mode": 0,
@@ -21,15 +21,17 @@
         {
           "name": "VAE",
           "type": "VAE",
+          "shape": 3,
           "links": [
             70,
             147
           ],
-          "slot_index": 0,
-          "shape": 3
+          "slot_index": 0
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
@@ -39,14 +41,14 @@
     {
       "id": 51,
       "type": "UnetLoaderGGUF",
-      "pos": {
-        "0": 620,
-        "1": 1240
-      },
-      "size": {
-        "0": 315,
-        "1": 58
-      },
+      "pos": [
+        620,
+        1240
+      ],
+      "size": [
+        315,
+        58
+      ],
       "flags": {},
       "order": 1,
       "mode": 0,
@@ -63,6 +65,8 @@
         }
       ],
       "properties": {
+        "cnr_id": "ComfyUI-GGUF",
+        "ver": "5aa6e98ad74e2fa826f80c8dbded5ec3dd09ba1f",
         "Node name for S&R": "UnetLoaderGGUF"
       },
       "widgets_values": [
@@ -72,14 +76,14 @@
     {
       "id": 29,
       "type": "KSamplerSelect",
-      "pos": {
-        "0": 1410,
-        "1": 1050
-      },
-      "size": {
-        "0": 250,
-        "1": 60
-      },
+      "pos": [
+        1410,
+        1050
+      ],
+      "size": [
+        250,
+        60
+      ],
       "flags": {},
       "order": 2,
       "mode": 0,
@@ -88,13 +92,15 @@
         {
           "name": "SAMPLER",
           "type": "SAMPLER",
+          "shape": 3,
           "links": [
             152
-          ],
-          "shape": 3
+          ]
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "KSamplerSelect"
       },
       "widgets_values": [
@@ -104,14 +110,14 @@
     {
       "id": 84,
       "type": "EmptySD3LatentImage",
-      "pos": {
-        "0": 1410,
-        "1": 1340
-      },
-      "size": {
-        "0": 250,
-        "1": 110
-      },
+      "pos": [
+        1410,
+        1340
+      ],
+      "size": [
+        250,
+        110
+      ],
       "flags": {},
       "order": 3,
       "mode": 0,
@@ -127,6 +133,8 @@
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "EmptySD3LatentImage"
       },
       "widgets_values": [
@@ -136,392 +144,38 @@
       ]
     },
     {
-      "id": 30,
-      "type": "BasicScheduler",
-      "pos": {
-        "0": 1410,
-        "1": 1170
-      },
-      "size": {
-        "0": 250,
-        "1": 110
-      },
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 102,
-          "slot_index": 0
-        }
+      "id": 32,
+      "type": "RandomNoise",
+      "pos": [
+        1410,
+        750
       ],
-      "outputs": [
-        {
-          "name": "SIGMAS",
-          "type": "SIGMAS",
-          "links": [
-            153
-          ],
-          "shape": 3
-        }
+      "size": [
+        250,
+        82
       ],
-      "properties": {
-        "Node name for S&R": "BasicScheduler"
-      },
-      "widgets_values": [
-        "simple",
-        20,
-        1
-      ]
-    },
-    {
-      "id": 17,
-      "type": "InpaintExtendOutpaint",
-      "pos": {
-        "0": 490,
-        "1": 510
-      },
-      "size": {
-        "0": 320,
-        "1": 194
-      },
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 47
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 66
-        },
-        {
-          "name": "optional_context_mask",
-          "type": "MASK",
-          "link": 67,
-          "shape": 7
-        }
-      ],
-      "outputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "links": [
-            39
-          ],
-          "slot_index": 0,
-          "shape": 3
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "links": [
-            40
-          ],
-          "slot_index": 1,
-          "shape": 3
-        },
-        {
-          "name": "context_mask",
-          "type": "MASK",
-          "links": [
-            41
-          ],
-          "slot_index": 2,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintExtendOutpaint"
-      },
-      "widgets_values": [
-        "factors",
-        0,
-        1,
-        0,
-        1,
-        0,
-        1,
-        0,
-        1
-      ]
-    },
-    {
-      "id": 1,
-      "type": "InpaintCrop",
-      "pos": {
-        "0": 880,
-        "1": 90
-      },
-      "size": {
-        "0": 300,
-        "1": 314
-      },
-      "flags": {},
-      "order": 15,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 39
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 40
-        },
-        {
-          "name": "optional_context_mask",
-          "type": "MASK",
-          "link": 41,
-          "shape": 7
-        }
-      ],
-      "outputs": [
-        {
-          "name": "stitch",
-          "type": "STITCH",
-          "links": [
-            8
-          ],
-          "slot_index": 0,
-          "shape": 3
-        },
-        {
-          "name": "cropped_image",
-          "type": "IMAGE",
-          "links": [
-            156
-          ],
-          "slot_index": 1,
-          "shape": 3
-        },
-        {
-          "name": "cropped_mask",
-          "type": "MASK",
-          "links": [
-            144
-          ],
-          "slot_index": 2,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintCrop"
-      },
-      "widgets_values": [
-        20,
-        1,
-        true,
-        16,
-        false,
-        16,
-        "bicubic",
-        "forced size",
-        1024,
-        1024,
-        1,
-        512,
-        512,
-        1024,
-        1024,
-        32
-      ]
-    },
-    {
-      "id": 3,
-      "type": "LoadImage",
-      "pos": {
-        "0": 40,
-        "1": 70
-      },
-      "size": {
-        "0": 370,
-        "1": 450
-      },
       "flags": {},
       "order": 4,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            54
-          ],
-          "slot_index": 0,
-          "shape": 3
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            51
-          ],
-          "slot_index": 1,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "clipspace/clipspace-mask-6889098.2.png [input]",
-        "image"
-      ]
-    },
-    {
-      "id": 16,
-      "type": "LoadImage",
-      "pos": {
-        "0": 40,
-        "1": 610
-      },
-      "size": {
-        "0": 370,
-        "1": 450
-      },
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [],
-          "slot_index": 0,
-          "shape": 3
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            52
-          ],
-          "slot_index": 1,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "clipspace/clipspace-mask-6898724.4.png [input]",
-        "image"
-      ]
-    },
-    {
-      "id": 18,
-      "type": "InpaintResize",
-      "pos": {
-        "0": 490,
-        "1": 230
-      },
-      "size": {
-        "0": 320,
-        "1": 170
-      },
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 54
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 51
-        },
-        {
-          "name": "optional_context_mask",
-          "type": "MASK",
-          "link": 52,
-          "shape": 7
-        }
-      ],
-      "outputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "links": [
-            47
-          ],
-          "slot_index": 0,
-          "shape": 3
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "links": [
-            66
-          ],
-          "slot_index": 1,
-          "shape": 3
-        },
-        {
-          "name": "context_mask",
-          "type": "MASK",
-          "links": [
-            67
-          ],
-          "slot_index": 2,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintResize"
-      },
-      "widgets_values": [
-        "bicubic",
-        "ensure minimum size",
-        1024,
-        1024,
-        1
-      ]
-    },
-    {
-      "id": 32,
-      "type": "RandomNoise",
-      "pos": {
-        "0": 1410,
-        "1": 750
-      },
-      "size": {
-        "0": 250,
-        "1": 82
-      },
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
           "name": "NOISE",
           "type": "NOISE",
+          "shape": 3,
           "links": [
             157
           ],
-          "slot_index": 0,
-          "shape": 3
+          "slot_index": 0
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "RandomNoise"
       },
       "widgets_values": [
-        899041613719911,
+        1028751694899398,
         "randomize"
       ],
       "color": "#2a363b",
@@ -530,31 +184,33 @@
     {
       "id": 74,
       "type": "ControlNetLoader",
-      "pos": {
-        "0": 620,
-        "1": 1350
-      },
-      "size": {
-        "0": 320,
-        "1": 60
-      },
+      "pos": [
+        620,
+        1350
+      ],
+      "size": [
+        320,
+        60
+      ],
       "flags": {},
-      "order": 8,
+      "order": 5,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "CONTROL_NET",
+          "label": "CONTROL_NET",
           "type": "CONTROL_NET",
+          "shape": 3,
           "links": [
             126
           ],
-          "slot_index": 0,
-          "shape": 3,
-          "label": "CONTROL_NET"
+          "slot_index": 0
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "ControlNetLoader"
       },
       "widgets_values": [
@@ -562,120 +218,78 @@
       ]
     },
     {
-      "id": 2,
-      "type": "InpaintStitch",
-      "pos": {
-        "0": 1680,
-        "1": 90
-      },
-      "size": {
-        "0": 210,
-        "1": 78
-      },
-      "flags": {},
-      "order": 20,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "stitch",
-          "type": "STITCH",
-          "link": 8
-        },
-        {
-          "name": "inpainted_image",
-          "type": "IMAGE",
-          "link": 81
-        }
-      ],
-      "outputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "links": [
-            22
-          ],
-          "slot_index": 0,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InpaintStitch"
-      },
-      "widgets_values": [
-        "bislerp"
-      ]
-    },
-    {
       "id": 59,
       "type": "SamplerCustomAdvanced",
-      "pos": {
-        "0": 1700,
-        "1": 870
-      },
-      "size": {
-        "0": 240,
-        "1": 110
-      },
+      "pos": [
+        1700,
+        870
+      ],
+      "size": [
+        240,
+        110
+      ],
       "flags": {},
-      "order": 18,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
           "name": "noise",
+          "label": "noise",
           "type": "NOISE",
           "link": 157,
-          "slot_index": 0,
-          "label": "noise"
+          "slot_index": 0
         },
         {
           "name": "guider",
+          "label": "guider",
           "type": "GUIDER",
           "link": 110,
-          "slot_index": 1,
-          "label": "guider"
+          "slot_index": 1
         },
         {
           "name": "sampler",
+          "label": "sampler",
           "type": "SAMPLER",
           "link": 152,
-          "slot_index": 2,
-          "label": "sampler"
+          "slot_index": 2
         },
         {
           "name": "sigmas",
+          "label": "sigmas",
           "type": "SIGMAS",
           "link": 153,
-          "slot_index": 3,
-          "label": "sigmas"
+          "slot_index": 3
         },
         {
           "name": "latent_image",
+          "label": "latent_image",
           "type": "LATENT",
           "link": 158,
-          "slot_index": 4,
-          "label": "latent_image"
+          "slot_index": 4
         }
       ],
       "outputs": [
         {
           "name": "output",
+          "label": "output",
           "type": "LATENT",
+          "shape": 3,
           "links": [
             151
           ],
-          "slot_index": 0,
-          "shape": 3,
-          "label": "output"
+          "slot_index": 0
         },
         {
           "name": "denoised_output",
+          "label": "denoised_output",
           "type": "LATENT",
-          "links": null,
           "shape": 3,
-          "label": "denoised_output"
+          "links": null
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "SamplerCustomAdvanced"
       },
       "widgets_values": []
@@ -683,16 +297,16 @@
     {
       "id": 50,
       "type": "DualCLIPLoaderGGUF",
-      "pos": {
-        "0": 620,
-        "1": 950
-      },
-      "size": {
-        "0": 315,
-        "1": 106
-      },
+      "pos": [
+        620,
+        950
+      ],
+      "size": [
+        315,
+        106
+      ],
       "flags": {},
-      "order": 9,
+      "order": 6,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -707,6 +321,8 @@
         }
       ],
       "properties": {
+        "cnr_id": "ComfyUI-GGUF",
+        "ver": "5aa6e98ad74e2fa826f80c8dbded5ec3dd09ba1f",
         "Node name for S&R": "DualCLIPLoaderGGUF"
       },
       "widgets_values": [
@@ -718,78 +334,80 @@
     {
       "id": 71,
       "type": "ControlNetInpaintingAliMamaApply",
-      "pos": {
-        "0": 1060,
-        "1": 1210
-      },
-      "size": {
-        "0": 270,
-        "1": 210
-      },
+      "pos": [
+        1060,
+        1210
+      ],
+      "size": [
+        270,
+        210
+      ],
       "flags": {},
-      "order": 16,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
           "name": "positive",
+          "label": "positive",
           "type": "CONDITIONING",
-          "link": 155,
-          "label": "positive"
+          "link": 155
         },
         {
           "name": "negative",
+          "label": "negative",
           "type": "CONDITIONING",
-          "link": 160,
-          "label": "negative"
+          "link": 160
         },
         {
           "name": "control_net",
+          "label": "control_net",
           "type": "CONTROL_NET",
-          "link": 126,
-          "label": "control_net"
+          "link": 126
         },
         {
           "name": "vae",
+          "label": "vae",
           "type": "VAE",
-          "link": 147,
-          "label": "vae"
+          "link": 147
         },
         {
           "name": "image",
+          "label": "image",
           "type": "IMAGE",
-          "link": 156,
-          "label": "image"
+          "link": 165
         },
         {
           "name": "mask",
+          "label": "mask",
           "type": "MASK",
-          "link": 144,
-          "label": "mask"
+          "link": 166
         }
       ],
       "outputs": [
         {
           "name": "positive",
+          "label": "positive",
           "type": "CONDITIONING",
+          "shape": 3,
           "links": [
             137
           ],
-          "slot_index": 0,
-          "shape": 3,
-          "label": "positive"
+          "slot_index": 0
         },
         {
           "name": "negative",
+          "label": "negative",
           "type": "CONDITIONING",
+          "shape": 3,
           "links": [
             138
           ],
-          "slot_index": 1,
-          "shape": 3,
-          "label": "negative"
+          "slot_index": 1
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "ControlNetInpaintingAliMamaApply"
       },
       "widgets_values": [
@@ -801,38 +419,40 @@
     {
       "id": 85,
       "type": "CLIPTextEncodeFlux",
-      "pos": {
-        "0": 990,
-        "1": 990
-      },
-      "size": {
-        "0": 370,
-        "1": 160
-      },
+      "pos": [
+        990,
+        990
+      ],
+      "size": [
+        370,
+        166
+      ],
       "flags": {},
-      "order": 13,
+      "order": 12,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
+          "label": "clip",
           "type": "CLIP",
-          "link": 159,
-          "label": "clip"
+          "link": 159
         }
       ],
       "outputs": [
         {
           "name": "CONDITIONING",
+          "label": "CONDITIONING",
           "type": "CONDITIONING",
+          "shape": 3,
           "links": [
             160
           ],
-          "slot_index": 0,
-          "shape": 3,
-          "label": "CONDITIONING"
+          "slot_index": 0
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "CLIPTextEncodeFlux"
       },
       "widgets_values": [
@@ -846,16 +466,16 @@
     {
       "id": 80,
       "type": "CFGGuider",
-      "pos": {
-        "0": 1410,
-        "1": 890
-      },
-      "size": {
-        "0": 250,
-        "1": 100
-      },
+      "pos": [
+        1410,
+        890
+      ],
+      "size": [
+        250,
+        100
+      ],
       "flags": {},
-      "order": 17,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
@@ -878,14 +498,16 @@
         {
           "name": "GUIDER",
           "type": "GUIDER",
+          "shape": 3,
           "links": [
             110
           ],
-          "slot_index": 0,
-          "shape": 3
+          "slot_index": 0
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "CFGGuider"
       },
       "widgets_values": [
@@ -893,74 +515,32 @@
       ]
     },
     {
-      "id": 73,
-      "type": "CLIPTextEncodeFlux",
-      "pos": {
-        "0": 990,
-        "1": 650
-      },
-      "size": {
-        "0": 370,
-        "1": 290
-      },
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 149,
-          "label": "clip"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            155
-          ],
-          "slot_index": 0,
-          "shape": 3,
-          "label": "CONDITIONING"
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CLIPTextEncodeFlux"
-      },
-      "widgets_values": [
-        "a goat looking at the background stepping on brown leaves",
-        "a goat looking at the background, with large horns stepping on ground covered with brown leaves, underexposed image, low contrast, a bit foggy",
-        3.5
-      ],
-      "color": "#232",
-      "bgcolor": "#353"
-    },
-    {
       "id": 10,
       "type": "SaveImage",
-      "pos": {
-        "0": 1630,
-        "1": 250
-      },
-      "size": {
-        "0": 290,
-        "1": 350
-      },
+      "pos": [
+        1630,
+        250
+      ],
+      "size": [
+        290,
+        350
+      ],
       "flags": {},
-      "order": 22,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 22,
+          "link": 167,
           "slot_index": 0
         }
       ],
       "outputs": [],
-      "properties": {},
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26"
+      },
       "widgets_values": [
         "%date:yyyyMMddhhmmss%"
       ]
@@ -968,16 +548,16 @@
     {
       "id": 54,
       "type": "PreviewImage",
-      "pos": {
-        "0": 1730,
-        "1": 1060
-      },
+      "pos": [
+        1730,
+        1060
+      ],
       "size": [
         210,
-        210
+        246
       ],
       "flags": {},
-      "order": 21,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
@@ -988,6 +568,8 @@
       ],
       "outputs": [],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "PreviewImage"
       },
       "widgets_values": []
@@ -995,16 +577,16 @@
     {
       "id": 23,
       "type": "VAEDecode",
-      "pos": {
-        "0": 1720,
-        "1": 750
-      },
-      "size": {
-        "0": 210,
-        "1": 46
-      },
+      "pos": [
+        1720,
+        750
+      ],
+      "size": [
+        210,
+        46
+      ],
       "flags": {},
-      "order": 19,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -1023,30 +605,295 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            81,
-            106
+            106,
+            168
           ],
           "slot_index": 0
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
         "Node name for S&R": "VAEDecode"
       },
       "widgets_values": []
     },
     {
-      "id": 52,
-      "type": "Note",
-      "pos": {
-        "0": 20,
-        "1": 1110
+      "id": 87,
+      "type": "InpaintStitchImproved",
+      "pos": [
+        1200,
+        70
+      ],
+      "size": [
+        240,
+        46
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "stitcher",
+          "type": "STITCHER",
+          "link": 164
+        },
+        {
+          "name": "inpainted_image",
+          "type": "IMAGE",
+          "link": 168
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            167
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InpaintStitchImproved"
+      }
+    },
+    {
+      "id": 86,
+      "type": "InpaintCropImproved",
+      "pos": [
+        510,
+        70
+      ],
+      "size": [
+        390,
+        578
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 161
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "shape": 7,
+          "link": 162
+        },
+        {
+          "name": "optional_context_mask",
+          "type": "MASK",
+          "shape": 7,
+          "link": 163
+        }
+      ],
+      "outputs": [
+        {
+          "name": "stitcher",
+          "type": "STITCHER",
+          "links": [
+            164
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "cropped_image",
+          "type": "IMAGE",
+          "links": [
+            165
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "cropped_mask",
+          "type": "MASK",
+          "links": [
+            166
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "InpaintCropImproved"
       },
-      "size": {
-        "0": 470,
-        "1": 330
-      },
+      "widgets_values": [
+        "bilinear",
+        "bicubic",
+        true,
+        "ensure minimum resolution",
+        1024,
+        1024,
+        16384,
+        16384,
+        true,
+        0,
+        false,
+        32,
+        0.1,
+        true,
+        1,
+        1,
+        1,
+        1,
+        1.2,
+        true,
+        1024,
+        1024,
+        "32"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "LoadImage",
+      "pos": [
+        40,
+        70
+      ],
+      "size": [
+        370,
+        450
+      ],
       "flags": {},
       "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "shape": 3,
+          "links": [
+            161
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "shape": 3,
+          "links": [
+            162
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "clipspace/clipspace-mask-682793.8999999911.png [input]",
+        "image"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "LoadImage",
+      "pos": [
+        40,
+        610
+      ],
+      "size": [
+        370,
+        450
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "shape": 3,
+          "links": [],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "shape": 3,
+          "links": [
+            163
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "clipspace/clipspace-mask-667975.png [input]",
+        "image"
+      ]
+    },
+    {
+      "id": 73,
+      "type": "CLIPTextEncodeFlux",
+      "pos": [
+        990,
+        650
+      ],
+      "size": [
+        370,
+        290
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "label": "clip",
+          "type": "CLIP",
+          "link": 149
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "label": "CONDITIONING",
+          "type": "CONDITIONING",
+          "shape": 3,
+          "links": [
+            155
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "CLIPTextEncodeFlux"
+      },
+      "widgets_values": [
+        "a bottle full of red liquid, reflected on the floor",
+        "watercolor painting",
+        3.5
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 52,
+      "type": "Note",
+      "pos": [
+        20,
+        1110
+      ],
+      "size": [
+        470,
+        330
+      ],
+      "flags": {},
+      "order": 9,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1058,97 +905,52 @@
       ],
       "color": "#432",
       "bgcolor": "#653"
+    },
+    {
+      "id": 30,
+      "type": "BasicScheduler",
+      "pos": [
+        1410,
+        1170
+      ],
+      "size": [
+        250,
+        110
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 102,
+          "slot_index": 0
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "shape": 3,
+          "links": [
+            153
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26",
+        "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+        "simple",
+        8,
+        1
+      ]
     }
   ],
   "links": [
-    [
-      8,
-      1,
-      0,
-      2,
-      0,
-      "STITCH"
-    ],
-    [
-      22,
-      2,
-      0,
-      10,
-      0,
-      "IMAGE"
-    ],
-    [
-      39,
-      17,
-      0,
-      1,
-      0,
-      "IMAGE"
-    ],
-    [
-      40,
-      17,
-      1,
-      1,
-      1,
-      "MASK"
-    ],
-    [
-      41,
-      17,
-      2,
-      1,
-      2,
-      "MASK"
-    ],
-    [
-      47,
-      18,
-      0,
-      17,
-      0,
-      "IMAGE"
-    ],
-    [
-      51,
-      3,
-      1,
-      18,
-      1,
-      "MASK"
-    ],
-    [
-      52,
-      16,
-      1,
-      18,
-      2,
-      "MASK"
-    ],
-    [
-      54,
-      3,
-      0,
-      18,
-      0,
-      "IMAGE"
-    ],
-    [
-      66,
-      18,
-      1,
-      17,
-      1,
-      "MASK"
-    ],
-    [
-      67,
-      18,
-      2,
-      17,
-      2,
-      "MASK"
-    ],
     [
       70,
       25,
@@ -1156,14 +958,6 @@
       23,
       1,
       "VAE"
-    ],
-    [
-      81,
-      23,
-      0,
-      2,
-      1,
-      "IMAGE"
     ],
     [
       102,
@@ -1212,14 +1006,6 @@
       80,
       2,
       "CONDITIONING"
-    ],
-    [
-      144,
-      1,
-      2,
-      71,
-      5,
-      "MASK"
     ],
     [
       147,
@@ -1278,14 +1064,6 @@
       "CONDITIONING"
     ],
     [
-      156,
-      1,
-      1,
-      71,
-      4,
-      "IMAGE"
-    ],
-    [
       157,
       32,
       0,
@@ -1316,18 +1094,83 @@
       71,
       1,
       "CONDITIONING"
+    ],
+    [
+      161,
+      3,
+      0,
+      86,
+      0,
+      "IMAGE"
+    ],
+    [
+      162,
+      3,
+      1,
+      86,
+      1,
+      "MASK"
+    ],
+    [
+      163,
+      16,
+      1,
+      86,
+      2,
+      "MASK"
+    ],
+    [
+      164,
+      86,
+      0,
+      87,
+      0,
+      "STITCHER"
+    ],
+    [
+      165,
+      86,
+      1,
+      71,
+      4,
+      "IMAGE"
+    ],
+    [
+      166,
+      86,
+      2,
+      71,
+      5,
+      "MASK"
+    ],
+    [
+      167,
+      87,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      168,
+      23,
+      0,
+      87,
+      1,
+      "IMAGE"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.5644739300537773,
+      "scale": 0.8264462809917354,
       "offset": [
-        103.20192590580136,
-        140.8928563375629
+        22.553158958959973,
+        78.18877073994109
       ]
-    }
+    },
+    "ue_links": []
   },
   "version": 0.4
 }

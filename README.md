@@ -1,27 +1,27 @@
 ComfyUI-Inpaint-CropAndStitch
 
-Copyright (c) 2024, Luis Quesada Torres - https://github.com/lquesada | www.luisquesada.com
+Copyright (c) 2024-2025, Luis Quesada Torres - https://github.com/lquesada | www.luisquesada.com
 
 Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 
 # Overview
 
-"✂️  Inpaint Crop" is a node that crops an image before sampling. The context area can be specified via the mask, expand pixels and expand factor or via a separate (optional) mask.
+The '✂️ Inpaint Crop' and '✂️ Inpaint Stitch' nodes enable inpainting only on masked area very easily
 
-"✂️  Inpaint Stitch" is a node that stitches the inpainted image back into the original image without altering unmasked areas.
+"✂️  Inpaint Crop" crops the image around the masked area, taking care of pre-resizing the image if desired, extending it for outpainting, filling mask holes, growing or blurring the mask, cutting around a larger context area, and resizing the cropped area to a target resolution.
 
-"✂️  Extend Image for Outpainting" is a node that extends an image and masks in order to use the power of Inpaint Crop and Stich (rescaling, blur, blend, restitching) for outpainting.
+The cropped image can be used in any standard workflow for sampling.
 
-"✂️  Resize Image Before Inpainting" is a node that resizes an image before inpainting, for example to upscale it to keep more detail than in the original image.
+Then, the "✂️  Inpaint Stitch" node stitches the inpainted image back into the original image without altering unmasked areas.
 
 The main advantages of inpainting only in a masked area with these nodes are:
-  - It's much faster than sampling the whole image.
+  - It is much faster than sampling the whole image.
   - It enables setting the right amount of context from the image for the prompt to be more accurately represented in the generated picture.
   - It enables upscaling before sampling in order to generate more detail, then stitching back in the original picture.
   - It enables downscaling before sampling if the area is too large, in order to avoid artifacts such as double heads or double bodies.
   - It enables forcing a specific resolution (e.g. 1024x1024 for SDXL models).
-  - It doesn't modify the unmasked part of the image, not even passing it through VAE encode and decode.
-  - The nodes take care of good blending.
+  - It does not modify the unmasked part of the image, not even passing it through VAE encode and decode.
+  - It takes care of blending automatically.
 
 # Video Tutorial
 
@@ -29,21 +29,23 @@ The main advantages of inpainting only in a masked area with these nodes are:
 
 [(click to open in YouTube)](https://www.youtube.com/watch?v=mI0UWm7BNtQ)
 
+Note: this video tutorial is for the previous version of the nodes, but still it shows how to use them. The parameters are mostly the same.
+
 ## Parameters
-- `context_expand_pixels`: how much to grow the context area (i.e. the area for the sampling) around the original mask, in pixels. This provides more context for the sampling.
-- `context_expand_factor`: how much to grow the context area (i.e. the area for the sampling) around the original mask, as a factor, e.g. 1.1 is grow 10% of the size of the mask.
-- `fill_mask_holes`: Whether to fully fill any holes (small or large) in the mask, that is, mark fully enclosed areas as part of the mask.
-- `blur_mask_pixels`: Grows the mask and blurs it by the specified amount of pixels.
-- `invert_mask`: Whether to fully invert the mask, that is, only keep what was marked, instead of removing what was marked.
-- `blend_pixels`: Grows the stitch mask and blurs it by the specified amount of pixels, so that the stitch is slowly blended and there are no seams.
-- `rescale_algorithm`: Rescale algorithm to use. bislerp is for super high quality but very slow, recommended for stich. bicubic is high quality and faster, recommended for crop.
-- `mode`: Free size, Forced size, or Ranged size.
-    - Ranged size upscales the area as much as possible to make it fit the larger size between `min_width`, `max_width`, `min_height`, and `max_height`, with a `padding` to align to standard sizes, then rescales before stitching back.
-    - Forced size uses `force_width` and `force_height` and upscales the content to take that size before sampling, then downscales before stitching back. Use forced size e.g. for SDXL.
-    - Free size uses `rescale_factor` to optionally rescale the content before sampling and eventually scale back before stitching, and `padding` to align to standard sizes.
+- `downscale_algorithm` and `upscale_algorithm`: Which algorithms to use when resizing an image up or down.
+- `preresize`: Shows options to resize the input image before any cropping: to ensure minimum resolution, to ensure maximum resolution, to ensure both minimum and maximum resolution. This makes it very convenient to ensure that any input images have a certain resolution.
+- `mask_fill_holes`: Whether to fully fill any holes (small or large) in the mask, that is, mark fully enclosed areas as part of the mask.
+- `mask_expand_pixels`: Grows the mask by the specified amount of pixels.
+- `mask_invert`: Whether to fully invert the mask, that is, only keep what was masked, instead of removing what was marked.
+- `mask_blend_pixels`: Grows the stitch mask and blurs it by the specified amount of pixels, so that the stitch is slowly blended and there are no seams.
+- `mask_hipass_filter`: Ignores mask values lower than the one specified here. This is to avoid sections in the mask that are almost 0 (black) to count as masked area. Sometimes that leads to confusion, as the user believes the area is not really masked and the node is considering it as masked.
+- `extend_for_outpainting`: Shows options to extend the mask in any/all directions (up/down/left/right) by a certain factor. >1 extends the image, e.g. 2 extends the image in a direction by the same amount of space the image takes. <1 crops the image, e.g. 0.75 removes 25% of the image on that direction.
+- `context_from_mask_extend_factor`: Extends the context area by a factor of the size of the mask. The higher this value is, the more area will be cropped around the mask for the model to have more context. 1 means do not grow. 2 means grow the same size of the mask across every direction.
+- `output_resize_to_target_size`: Forces that the cropped image has a specific resolution. This may involve resizing and extending out of the original image, but the stitch node reverts those changes to integrate the image seamlessly.
+- `output_padding`: Ensures that the cropped image width and height are a multiple of this padding value. Models require images to be padded to a certain value (8, 16, 32) to function properly.
 
 ## Example (Stable Diffusion)
-This example inpaints by sampling on a small section of the larger image, upscaling to fit 512x512-768x768, then stitching and blending back in the original image.
+This example inpaints by sampling on a small section of the larger image, upscaling to fit 512x512, then stitching and blending back in the original image.
 
 Download the following example workflow from [here](inpaint-cropandstitch_example_workflow.json) or drag and drop the screenshot into ComfyUI.
 
@@ -73,14 +75,22 @@ Use an inpainting model e.g. lazymixRealAmateur_v40Inpainting.
 
 Use "InpaintModelConditioning" instead of "VAE Encode (for Inpainting)" to be able to set denoise values lower than 1.
 
-If you want to inpaint fast with SD 1.5, use ranged size with min width and height 512 and max width and height 768 with padding 32. Set high rescale_factor (e.g. 10), it will be adapted to the right resolution.
-
-If you want to inpaint with SDXL, use forced size = 1024.
-
-# Known Issues
-The image is resized (e.g. upsized) before cropping the inpaint and context area. If the mask is too small compared to the image, the crop node will try to resize the image to a very large size first, which is memory inefficient and would cause a memory overflow. See https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch/issues/42
+Enable "resize to target size" and set it to a preferred resolution for your model, e.g. 512x512 for SD 1.5, 1024x1024 for SDXL or Flux.
 
 # Changelog
+## 2025-04-06
+- Published the improved version of the Crop and Stitch nodes.
+- Improved: Stitching is now way more precise. In the previous version, stitching an image back into place could shift it by one pixel. That will not happen anymore.
+- Improved: Images are now cropped before being resized. In the past, they were resized before being cropped. This triggered crashes when the input image was large and the masked area was small.
+- Improved: Images are now not extended more than necessary. In the past, they were extended x3, which was memory inefficient.
+- Improved: The cropped area will stay inside of the image if possible. In the past, the cropped area was centered around the mask and would go out of the image even if not needed.
+- Improved: fill mask holes will now keep the mask as float values. In the past, it turned the mask into binary (yes/no only).
+- Improved: Added a hipass filter for mask that ignores values below a threshold. In the past, sometimes mask with a 0.01 value (basically black / no mask) would be considered mask, which was very confusing to users.
+- Improved: In the (now) rare case that extending out of the image is needed, instead of mirroring the original image, the edges are extended. Mirroring caused confusion among users in the past.
+- Improved: Integrated preresize and extend for outpainting in the crop node. In the past, they were external and could interact weirdly with features, e.g. expanding for outpainting on the four directions and having "fill_mask_holes" would cause the mask to be fully set across the whole image.
+- Improved: Now works when passing one mask for several images or one image for several masks.
+- UX: Streamlined many options, e.g. merged the blur and blend features in a single parameter, removed the ranged size option, removed context_expand_pixels as factor is more intuitive, etc.
+- Clean up: Marked the old nodes ("Crop", "Stitch", "Extend Image for Outpainting", and "Resize Image Before Inpainting") as obsolete. They will continue working in old workflows but will have a note in the title asking to update. In particular, there's no replacement for "Extend Image for Outpainting" and "Resize Image Before Inpainting" because those features are now integrated in the Crop node.
 ## 2024-10-28
 - Added a new example workflow for inpainting with flux.
 ## 2024-06-10
