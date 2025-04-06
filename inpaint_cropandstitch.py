@@ -307,33 +307,25 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
         new_y = y - (new_h - h) // 2  # Move the y position to keep the center
 
     # Step 4: Adjust context area to avoid overflow
-    # Handle right overflow (image width overflow)
+    # Right overflow
     if new_x + new_w > image.shape[2]:
         overflow = (new_x + new_w) - image.shape[2]
-        new_x = max(0, new_x - overflow)  # Move left to fit the context area
-        # Ensure the center doesn't go past the image center
-        new_x = min(new_x, image.shape[2] // 2 - new_w // 2)  # Keep the center near the middle
+        new_x = max(0, new_x - overflow)
 
-    # Handle left overflow (image width overflow)
+    # Left overflow
     if new_x < 0:
-        overflow = -new_x  # how much it overflows on the left
-        new_x = max(0, x - overflow)  # Move to the right as much as it overflows
-        # Ensure the center doesn't go past the middle of the image
-        new_x = min(new_x, image.shape[2] // 2 - new_w // 2)  # Keep the center near the middle
+        overflow = -new_x
+        new_x = 0
 
-    # Handle bottom overflow (image height overflow)
+    # Bottom overflow
     if new_y + new_h > image.shape[1]:
-        overflow = (new_y + new_h) - image.shape[1]
-        new_y = max(0, new_y - overflow)  # Move up to fit the context area
-        # Ensure the center doesn't go past the image center vertically
-        new_y = min(new_y, image.shape[1] // 2 - new_h // 2)  # Keep the center near the middle
+       overflow = (new_y + new_h) - image.shape[1]
+       new_y = max(0, new_y - overflow)
 
-    # Handle top overflow (image height overflow)
+    # Top overflow
     if new_y < 0:
-        overflow = -new_y  # how much it overflows at the top
-        new_y = max(0, y - overflow)  # Move down as much as it overflows
-        # Ensure the center doesn't go past the middle vertically
-        new_y = min(new_y, image.shape[1] // 2 - new_h // 2)  # Keep the center near the middle
+        overflow = -new_y
+        new_y = 0
 
     # Step 5: Grow the image to accommodate the new context area
 
@@ -484,6 +476,7 @@ class InpaintCropImproved:
 
     # Switch commenting around to turn on debug mode (extra outputs, print statements)
 
+    
     DEBUG_MODE = False
     RETURN_TYPES = ("STITCHER", "IMAGE", "MASK")
     RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
@@ -543,8 +536,8 @@ class InpaintCropImproved:
         "DEBUG_cropped_in_canvas_location",
         "DEBUG_cropped_mask_blend",
     )
-
     '''
+
  
     def inpaint_crop(self, image, downscale_algorithm, upscale_algorithm, preresize, preresize_mode, preresize_min_width, preresize_min_height, preresize_max_width, preresize_max_height, extend_for_outpainting, extend_up_factor, extend_down_factor, extend_left_factor, extend_right_factor, mask_hipass_filter, mask_fill_holes, mask_expand_pixels, mask_invert, mask_blend_pixels, context_from_mask_extend_factor, output_resize_to_target_size, output_target_width, output_target_height, output_padding, mask=None, optional_context_mask=None):
         output_padding = int(output_padding)
