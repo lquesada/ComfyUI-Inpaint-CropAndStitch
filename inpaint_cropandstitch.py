@@ -654,9 +654,9 @@ class InpaintCropImproved:
             for key in ['canvas_to_orig_x', 'canvas_to_orig_y', 'canvas_to_orig_w', 'canvas_to_orig_h', 'canvas_image', 'cropped_to_canvas_x', 'cropped_to_canvas_y', 'cropped_to_canvas_w', 'cropped_to_canvas_h', 'cropped_mask_for_blend']:
                 result_stitcher[key].append(stitcher[key])
 
-            cropped_image = cropped_image.squeeze(0)
+            cropped_image = cropped_image.clone().squeeze(0)
             result_image.append(cropped_image)
-            cropped_mask = cropped_mask.squeeze(0)
+            cropped_mask = cropped_mask.clone().squeeze(0)
             result_mask.append(cropped_mask)
 
             # Handle the DEBUG_ fields dynamically
@@ -770,9 +770,6 @@ class InpaintCropImproved:
             'cropped_to_canvas_h': ctc_h,
             'cropped_mask_for_blend': cropped_mask_blend,
         }
-
-        cropped_image = cropped_image.clone()
-        cropped_mask = cropped_mask.clone()
 
         if not self.DEBUG_MODE:
             return stitcher, cropped_image, cropped_mask
