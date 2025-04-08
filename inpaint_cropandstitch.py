@@ -540,6 +540,12 @@ class InpaintCropImproved:
 
  
     def inpaint_crop(self, image, downscale_algorithm, upscale_algorithm, preresize, preresize_mode, preresize_min_width, preresize_min_height, preresize_max_width, preresize_max_height, extend_for_outpainting, extend_up_factor, extend_down_factor, extend_left_factor, extend_right_factor, mask_hipass_filter, mask_fill_holes, mask_expand_pixels, mask_invert, mask_blend_pixels, context_from_mask_extend_factor, output_resize_to_target_size, output_target_width, output_target_height, output_padding, mask=None, optional_context_mask=None):
+        image = image.clone()
+        if mask is not None:
+            mask = mask.clone()
+        if optional_context_mask is not None:
+            optional_context_mask = optional_context_mask.clone()
+
         output_padding = int(output_padding)
         
         # Check that some parameters make sense
@@ -764,6 +770,9 @@ class InpaintCropImproved:
             'cropped_to_canvas_h': ctc_h,
             'cropped_mask_for_blend': cropped_mask_blend,
         }
+
+        cropped_image = cropped_image.clone()
+        cropped_mask = cropped_mask.clone()
 
         if not self.DEBUG_MODE:
             return stitcher, cropped_image, cropped_mask
