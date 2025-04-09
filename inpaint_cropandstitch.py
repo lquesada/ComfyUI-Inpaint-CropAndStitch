@@ -273,6 +273,8 @@ def pad_to_multiple(value, multiple):
 
 
 def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscale_algorithm, upscale_algorithm):
+    image = image.clone()
+    mask = mask.clone()
     # Ok this is the most complex function in this node. The one that does the magic after all the preparation done by the other nodes.
     # Basically this function determines the right context area that encompasses the whole context area (mask+optional_context_mask),
     # that is ideally within the bounds of the original image, and that has the right aspect ratio to match target width and height.
@@ -306,96 +308,69 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
         new_x = x  # x stays the same
         new_y = y - (new_h - h) // 2  # Move the y position to keep the center
 
-    # Step 4: Adjust context area to avoid overflow
-    # Right overflow
-    if new_x + new_w > image.shape[2]:
-        overflow = (new_x + new_w) - image.shape[2]
-        new_x = max(0, new_x - overflow)
-
-    # Left overflow
-    if new_x < 0:
-        overflow = -new_x
-        new_x = 0
-
-    # Bottom overflow
-    if new_y + new_h > image.shape[1]:
-       overflow = (new_y + new_h) - image.shape[1]
-       new_y = max(0, new_y - overflow)
-
-    # Top overflow
-    if new_y < 0:
-        overflow = -new_y
-        new_y = 0
-
-    # Step 5: Grow the image to accommodate the new context area
+    # Step 4: Grow the image to accommodate the new context area
 
     image_h, image_w = image.shape[1], image.shape[2]  # Height and Width (B, H, W, C format)
     up_padding, down_padding, left_padding, right_padding = 0, 0, 0, 0
 
-    if new_w <= image_w and new_h <= image_h:
-        # No need to grow the image, just keep it as is
-        canvas_image = image
-        canvas_mask = mask
-        cto_x, cto_y, cto_w, cto_h = 0, 0, image_w, image_h
-    else:
-        B, image_h, image_w, C = image.shape
+    B, image_h, image_w, C = image.shape
 
-        expanded_image_w = image_w
-        expanded_image_h = image_h
+    expanded_image_w = image_w
+    expanded_image_h = image_h
 
-        # Adjust width for left overflow (x < 0) and right overflow (x + w > image_w)
-        if new_x < 0:
-            left_padding = -new_x
-            expanded_image_w += left_padding
-        if new_x + new_w > image_w:
-            right_padding = (new_x + new_w - image_w)
-            expanded_image_w += right_padding
-        # Adjust height for top overflow (y < 0) and bottom overflow (y + h > image_h)
-        if new_y < 0:
-            up_padding = -new_y
-            expanded_image_h += up_padding 
-        if new_y + new_h > image_h:
-            down_padding = (new_y + new_h - image_h)
-            expanded_image_h += down_padding
+    # Adjust width for left overflow (x < 0) and right overflow (x + w > image_w)
+    if new_x < 0:
+        left_padding = -new_x
+        expanded_image_w += left_padding
+    if new_x + new_w > image_w:
+        right_padding = (new_x + new_w - image_w)
+        expanded_image_w += right_padding
+    # Adjust height for top overflow (y < 0) and bottom overflow (y + h > image_h)
+    if new_y < 0:
+        up_padding = -new_y
+        expanded_image_h += up_padding 
+    if new_y + new_h > image_h:
+        down_padding = (new_y + new_h - image_h)
+        expanded_image_h += down_padding
 
-        expanded_image = torch.zeros((B, expanded_image_h, expanded_image_w, C), device=image.device)
-        expanded_mask = torch.ones((B, expanded_image_h, expanded_image_w), device=mask.device)
+    expanded_image = torch.zeros((B, expanded_image_h, expanded_image_w, C), device=image.device)
+    expanded_mask = torch.ones((B, expanded_image_h, expanded_image_w), device=mask.device)
 
-        # Reorder the tensors to match the required dimension format for padding
-        image = image.permute(0, 3, 1, 2)  # [B, H, W, C] -> [B, C, H, W]
-        expanded_image = expanded_image.permute(0, 3, 1, 2)  # [B, H, W, C] -> [B, C, H, W]
+    # Reorder the tensors to match the required dimension format for padding
+    image = image.permute(0, 3, 1, 2)  # [B, H, W, C] -> [B, C, H, W]
+    expanded_image = expanded_image.permute(0, 3, 1, 2)  # [B, H, W, C] -> [B, C, H, W]
 
-        # Ensure the expanded image has enough room to hold the padded version of the original image
-        expanded_image[:, :, up_padding:up_padding + image_h, left_padding:left_padding + image_w] = image
+    # Ensure the expanded image has enough room to hold the padded version of the original image
+    expanded_image[:, :, up_padding:up_padding + image_h, left_padding:left_padding + image_w] = image
 
-        # Fill the new extended areas with the edge values of the image
-        if up_padding > 0:
-            expanded_image[:, :, :up_padding, left_padding:left_padding + image_w] = image[:, :, 0:1, left_padding:left_padding + image_w].repeat(1, 1, up_padding, 1)
-        if down_padding > 0:
-            expanded_image[:, :, -down_padding:, left_padding:left_padding + image_w] = image[:, :, -1:, left_padding:left_padding + image_w].repeat(1, 1, down_padding, 1)
-        if left_padding > 0:
-            expanded_image[:, :, up_padding:up_padding + image_h, :left_padding] = expanded_image[:, :, up_padding:up_padding + image_h, left_padding:left_padding+1].repeat(1, 1, 1, left_padding)
-        if right_padding > 0:
-            expanded_image[:, :, up_padding:up_padding + image_h, -right_padding:] = expanded_image[:, :, up_padding:up_padding + image_h, -right_padding-1:-right_padding].repeat(1, 1, 1, right_padding)
+    # Fill the new extended areas with the edge values of the image
+    if up_padding > 0:
+        expanded_image[:, :, :up_padding, left_padding:left_padding + image_w] = image[:, :, 0:1, left_padding:left_padding + image_w].repeat(1, 1, up_padding, 1)
+    if down_padding > 0:
+        expanded_image[:, :, -down_padding:, left_padding:left_padding + image_w] = image[:, :, -1:, left_padding:left_padding + image_w].repeat(1, 1, down_padding, 1)
+    if left_padding > 0:
+        expanded_image[:, :, up_padding:up_padding + image_h, :left_padding] = expanded_image[:, :, up_padding:up_padding + image_h, left_padding:left_padding+1].repeat(1, 1, 1, left_padding)
+    if right_padding > 0:
+        expanded_image[:, :, up_padding:up_padding + image_h, -right_padding:] = expanded_image[:, :, up_padding:up_padding + image_h, -right_padding-1:-right_padding].repeat(1, 1, 1, right_padding)
 
-        # Reorder the tensors back to [B, H, W, C] format
-        expanded_image = expanded_image.permute(0, 2, 3, 1)  # [B, C, H, W] -> [B, H, W, C]
-        image = image.permute(0, 2, 3, 1)  # [B, C, H, W] -> [B, H, W, C]
+    # Reorder the tensors back to [B, H, W, C] format
+    expanded_image = expanded_image.permute(0, 2, 3, 1)  # [B, C, H, W] -> [B, H, W, C]
+    image = image.permute(0, 2, 3, 1)  # [B, C, H, W] -> [B, H, W, C]
 
-        # Same for the mask
-        expanded_mask[:, up_padding:up_padding + image_h, left_padding:left_padding + image_w] = mask
+    # Same for the mask
+    expanded_mask[:, up_padding:up_padding + image_h, left_padding:left_padding + image_w] = mask
 
-        # Record the cto values (canvas to original)
-        cto_x = left_padding
-        cto_y = up_padding
-        cto_w = image_w
-        cto_h = image_h
+    # Record the cto values (canvas to original)
+    cto_x = left_padding
+    cto_y = up_padding
+    cto_w = image_w
+    cto_h = image_h
 
-        # The final expanded image and mask
-        canvas_image = expanded_image
-        canvas_mask = expanded_mask
+    # The final expanded image and mask
+    canvas_image = expanded_image
+    canvas_mask = expanded_mask
 
-    # Step 6: Crop the image and mask around x, y, w, h
+    # Step 5: Crop the image and mask around x, y, w, h
     ctc_x = new_x+left_padding
     ctc_y = new_y+up_padding
     ctc_w = new_w
@@ -405,7 +380,7 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
     cropped_image = canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]
     cropped_mask = canvas_mask[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]
 
-    # Step 7: Resize image and mask to the target width and height
+    # Step 6: Resize image and mask to the target width and height
     # Decide which algorithm to use based on the scaling direction
     if target_w > ctc_w or target_h > ctc_h:  # Upscaling
         cropped_image = rescale_i(cropped_image, target_w, target_h, upscale_algorithm)
@@ -414,10 +389,39 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
         cropped_image = rescale_i(cropped_image, target_w, target_h, downscale_algorithm)
         cropped_mask = rescale_m(cropped_mask, target_w, target_h, downscale_algorithm)
 
-    # Step 8: Return all results
     return canvas_image, cto_x, cto_y, cto_w, cto_h, cropped_image, cropped_mask, ctc_x, ctc_y, ctc_w, ctc_h
 
 
+def stitch_magic_im(canvas_image, inpainted_image, mask, ctc_x, ctc_y, ctc_w, ctc_h, cto_x, cto_y, cto_w, cto_h, downscale_algorithm, upscale_algorithm):
+    canvas_image = canvas_image.clone()
+    inpainted_image = inpainted_image.clone()
+    mask = mask.clone()
+
+    # Resize inpainted image and mask to match the context size
+    _, h, w, _ = inpainted_image.shape
+    if ctc_w > w or ctc_h > h:  # Upscaling
+        resized_image = rescale_i(inpainted_image, ctc_w, ctc_h, upscale_algorithm)
+        resized_mask = rescale_m(mask, ctc_w, ctc_h, upscale_algorithm)
+    else:  # Downscaling
+        resized_image = rescale_i(inpainted_image, ctc_w, ctc_h, downscale_algorithm)
+        resized_mask = rescale_m(mask, ctc_w, ctc_h, downscale_algorithm)
+
+    # Clamp mask to [0, 1] and expand to match image channels
+    resized_mask = resized_mask.clamp(0, 1).unsqueeze(-1)  # shape: [1, H, W, 1]
+
+    # Extract the canvas region we're about to overwrite
+    canvas_crop = canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]
+
+    # Blend: new = mask * inpainted + (1 - mask) * canvas
+    blended = resized_mask * resized_image + (1.0 - resized_mask) * canvas_crop
+
+    # Paste the blended region back onto the canvas
+    canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w] = blended
+
+    # Final crop to get back the original image area
+    output_image = canvas_image[:, cto_y:cto_y + cto_h, cto_x:cto_x + cto_w]
+
+    return output_image
 
 
 class InpaintCropImproved:
@@ -474,9 +478,8 @@ class InpaintCropImproved:
     CATEGORY = "inpaint"
 
 
-    # Switch commenting around to turn on debug mode (extra outputs, print statements)
-
-    
+    # Remove the following # to turn on debug mode (extra outputs, print statements)
+    #'''
     DEBUG_MODE = False
     RETURN_TYPES = ("STITCHER", "IMAGE", "MASK")
     RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
@@ -536,7 +539,7 @@ class InpaintCropImproved:
         "DEBUG_cropped_in_canvas_location",
         "DEBUG_cropped_mask_blend",
     )
-    '''
+    #'''
 
  
     def inpaint_crop(self, image, downscale_algorithm, upscale_algorithm, preresize, preresize_mode, preresize_min_width, preresize_min_height, preresize_max_width, preresize_max_height, extend_for_outpainting, extend_up_factor, extend_down_factor, extend_left_factor, extend_right_factor, mask_hipass_filter, mask_fill_holes, mask_expand_pixels, mask_invert, mask_blend_pixels, context_from_mask_extend_factor, output_resize_to_target_size, output_target_width, output_target_height, output_padding, mask=None, optional_context_mask=None):
@@ -554,7 +557,7 @@ class InpaintCropImproved:
             assert preresize_max_height >= preresize_min_height, "Preresize maximum height must be greater than or equal to minimum height"
 
         if self.DEBUG_MODE:
-            print('Batch input')
+            print('Inpaint Crop Batch input')
             print(image.shape, type(image), image.dtype)
             if mask is not None:
                 print(mask.shape, type(mask), mask.dtype)
@@ -600,7 +603,7 @@ class InpaintCropImproved:
             optional_context_mask = optional_context_mask.expand(image.shape[0], -1, -1).clone()
 
         if self.DEBUG_MODE:
-            print('Batch ready')
+            print('Inpaint Crop Batch ready')
             print(image.shape, type(image), image.dtype)
             print(mask.shape, type(mask), mask.dtype)
             print(optional_context_mask.shape, type(optional_context_mask), optional_context_mask.dtype)
@@ -669,7 +672,7 @@ class InpaintCropImproved:
         result_mask = torch.stack(result_mask, dim=0)
 
         if self.DEBUG_MODE:
-            print('Batch output')
+            print('Inpaint Crop Batch output')
             print(result_image.shape, type(result_image), result_image.dtype)
             print(result_mask.shape, type(result_mask), result_mask.dtype)
 
@@ -804,6 +807,7 @@ class InpaintStitchImproved:
 
 
     def inpaint_stitch(self, stitcher, inpainted_image):
+        inpainted_image = inpainted_image.clone()
         results = []
 
         batch_size = inpainted_image.shape[0]
@@ -818,6 +822,7 @@ class InpaintStitchImproved:
             one_image = one_image.unsqueeze(0)
             one_image, = self.inpaint_stitch_single_image(one_stitcher, one_image)
             one_image = one_image.squeeze(0)
+            one_image = one_image.clone()
             results.append(one_image)
 
         result_batch = torch.stack(results, dim=0)
@@ -841,29 +846,6 @@ class InpaintStitchImproved:
 
         mask = stitcher['cropped_mask_for_blend']  # shape: [1, H, W]
 
-        # Resize inpainted image and mask to match the context size
-        _, h, w, _ = inpainted_image.shape
-        if ctc_w > w or ctc_h > h:  # Upscaling
-            resized_image = rescale_i(inpainted_image, ctc_w, ctc_h, upscale_algorithm)
-            resized_mask = rescale_m(mask, ctc_w, ctc_h, upscale_algorithm)
-        else:  # Downscaling
-            resized_image = rescale_i(inpainted_image, ctc_w, ctc_h, downscale_algorithm)
-            resized_mask = rescale_m(mask, ctc_w, ctc_h, downscale_algorithm)
-
-        # Clamp mask to [0, 1] and expand to match image channels
-        resized_mask = resized_mask.clamp(0, 1).unsqueeze(-1)  # shape: [1, H, W, 1]
-
-        # Extract the canvas region we're about to overwrite
-        canvas_crop = canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]
-
-        # Blend: new = mask * inpainted + (1 - mask) * canvas
-        blended = resized_mask * resized_image + (1.0 - resized_mask) * canvas_crop
-
-        # Paste the blended region back onto the canvas
-        canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w] = blended
-
-        # Final crop to get back the original image area
-        output_image = canvas_image[:, cto_y:cto_y + cto_h, cto_x:cto_x + cto_w]
+        output_image = stitch_magic_im(canvas_image, inpainted_image, mask, ctc_x, ctc_y, ctc_w, ctc_h, cto_x, cto_y, cto_w, cto_h, downscale_algorithm, upscale_algorithm)
 
         return (output_image,)
-
