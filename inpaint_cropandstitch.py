@@ -359,7 +359,7 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
             expanded_image_h += down_padding
 
         expanded_image = torch.zeros((B, expanded_image_h, expanded_image_w, C), device=image.device)
-        expanded_mask = torch.zeros((B, expanded_image_h, expanded_image_w), device=mask.device)
+        expanded_mask = torch.ones((B, expanded_image_h, expanded_image_w), device=mask.device)
 
         # Reorder the tensors to match the required dimension format for padding
         image = image.permute(0, 3, 1, 2)  # [B, H, W, C] -> [B, C, H, W]
