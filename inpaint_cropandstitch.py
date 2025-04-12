@@ -231,21 +231,46 @@ def findcontextarea_m(mask):
 
 
 def growcontextarea_m(context, mask, x, y, w, h, extend_factor):
-    center_x = x + w / 2.0
-    center_y = y + h / 2.0
+    img_h, img_w = mask.shape[1], mask.shape[2]
 
-    new_w = int(round(w * extend_factor))
-    new_h = int(round(h * extend_factor))
+    # Compute intended growth in each direction
+    grow_left = int(round(w * extend_factor / 2.0))
+    grow_right = int(round(w * extend_factor / 2.0))
+    grow_up = int(round(h * extend_factor / 2.0))
+    grow_down = int(round(h * extend_factor / 2.0))
 
-    new_x = int(round(center_x - new_w / 2.0))
-    new_y = int(round(center_y - new_h / 2.0))
+    # Try to grow left, but clamp at 0
+    new_x = x - grow_left
+    if new_x < 0:
+        new_x = 0
 
-    new_x = max(0, new_x)
-    new_y = max(0, new_y)
-    new_w = min(mask.shape[2] - new_x, new_w)
-    new_h = min(mask.shape[1] - new_y, new_h)
+    # Try to grow up, but clamp at 0
+    new_y = y - grow_up
+    if new_y < 0:
+        new_y = 0
 
+    # Right edge
+    new_x2 = x + w + grow_right
+    if new_x2 > img_w:
+        new_x2 = img_w
+
+    # Bottom edge
+    new_y2 = y + h + grow_down
+    if new_y2 > img_h:
+        new_y2 = img_h
+
+    # New width and height
+    new_w = new_x2 - new_x
+    new_h = new_y2 - new_y
+
+    # Extract the context
     new_context = mask[:, new_y:new_y+new_h, new_x:new_x+new_w]
+
+    if new_h < 0 or new_w < 0:
+        new_x = 0
+        new_y = 0
+        new_w = 1
+        new_h = 1
 
     return new_context, new_x, new_y, new_w, new_h
 
@@ -275,6 +300,7 @@ def pad_to_multiple(value, multiple):
 def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscale_algorithm, upscale_algorithm):
     image = image.clone()
     mask = mask.clone()
+    
     # Ok this is the most complex function in this node. The one that does the magic after all the preparation done by the other nodes.
     # Basically this function determines the right context area that encompasses the whole context area (mask+optional_context_mask),
     # that is ideally within the bounds of the original image, and that has the right aspect ratio to match target width and height.
@@ -282,6 +308,10 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
     # It keeps track of that growing to then be able to crop the image in the stitch node.
     # Finally, it crops the context area and resizes it to be exactly target_w and target_h.
     # It keeps track of that resize to be able to revert it in the stitch node.
+
+    # Check for invalid inputs
+    if target_w <= 0 or target_h <= 0 or w == 0 or h == 0:
+        return image, 0, 0, image.shape[2], image.shape[1], image, mask, 0, 0, image.shape[2], image.shape[1]
 
     # Step 1: Pad target dimensions to be multiples of padding
     if padding != 0:
@@ -292,28 +322,56 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
     target_aspect_ratio = target_w / target_h
 
     # Step 3: Grow current context area to meet the target aspect ratio
+    B, image_h, image_w, C = image.shape
     context_aspect_ratio = w / h
     if context_aspect_ratio < target_aspect_ratio:
         # Grow width to meet aspect ratio
         new_w = int(h * target_aspect_ratio)
         new_h = h
-        # Keep the center the same by adjusting x
-        new_x = x - (new_w - w) // 2  # Move the x position to keep the center
-        new_y = y  # y stays the same
+        new_x = x - (new_w - w) // 2
+        new_y = y
+
+        # Adjust new_x to keep within bounds
+        if new_x < 0:
+            shift = -new_x
+            if new_x + new_w + shift <= image_w:
+                new_x += shift
+            else:
+                overflow = (new_w - image_w) // 2
+                new_x = -overflow
+        elif new_x + new_w > image_w:
+            overflow = new_x + new_w - image_w
+            if new_x - overflow >= 0:
+                new_x -= overflow
+            else:
+                overflow = (new_w - image_w) // 2
+                new_x = -overflow
+
     else:
         # Grow height to meet aspect ratio
         new_w = w
         new_h = int(w / target_aspect_ratio)
-        # Keep the center the same by adjusting y
-        new_x = x  # x stays the same
-        new_y = y - (new_h - h) // 2  # Move the y position to keep the center
+        new_x = x
+        new_y = y - (new_h - h) // 2
+
+        # Adjust new_y to keep within bounds
+        if new_y < 0:
+            shift = -new_y
+            if new_y + new_h + shift <= image_h:
+                new_y += shift
+            else:
+                overflow = (new_h - image_h) // 2
+                new_y = -overflow
+        elif new_y + new_h > image_h:
+            overflow = new_y + new_h - image_h
+            if new_y - overflow >= 0:
+                new_y -= overflow
+            else:
+                overflow = (new_h - image_h) // 2
+                new_y = -overflow
 
     # Step 4: Grow the image to accommodate the new context area
-
-    image_h, image_w = image.shape[1], image.shape[2]  # Height and Width (B, H, W, C format)
     up_padding, down_padding, left_padding, right_padding = 0, 0, 0, 0
-
-    B, image_h, image_w, C = image.shape
 
     expanded_image_w = image_w
     expanded_image_h = image_h
@@ -333,8 +391,9 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
         down_padding = (new_y + new_h - image_h)
         expanded_image_h += down_padding
 
-    expanded_image = torch.zeros((B, expanded_image_h, expanded_image_w, C), device=image.device)
-    expanded_mask = torch.ones((B, expanded_image_h, expanded_image_w), device=mask.device)
+    # Step 5: Create the new image and mask
+    expanded_image = torch.zeros((image.shape[0], expanded_image_h, expanded_image_w, image.shape[3]), device=image.device)
+    expanded_mask = torch.ones((mask.shape[0], expanded_image_h, expanded_image_w), device=mask.device)
 
     # Reorder the tensors to match the required dimension format for padding
     image = image.permute(0, 3, 1, 2)  # [B, H, W, C] -> [B, C, H, W]
@@ -370,7 +429,7 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
     canvas_image = expanded_image
     canvas_mask = expanded_mask
 
-    # Step 5: Crop the image and mask around x, y, w, h
+    # Step 6: Crop the image and mask around x, y, w, h
     ctc_x = new_x+left_padding
     ctc_y = new_y+up_padding
     ctc_w = new_w
@@ -380,7 +439,7 @@ def crop_magic_im(image, mask, x, y, w, h, target_w, target_h, padding, downscal
     cropped_image = canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]
     cropped_mask = canvas_mask[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]
 
-    # Step 6: Resize image and mask to the target width and height
+    # Step 7: Resize image and mask to the target width and height
     # Decide which algorithm to use based on the scaling direction
     if target_w > ctc_w or target_h > ctc_h:  # Upscaling
         cropped_image = rescale_i(cropped_image, target_w, target_h, upscale_algorithm)
@@ -479,7 +538,7 @@ class InpaintCropImproved:
 
 
     # Remove the following # to turn on debug mode (extra outputs, print statements)
-    #'''
+    '''
     DEBUG_MODE = False
     RETURN_TYPES = ("STITCHER", "IMAGE", "MASK")
     RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
