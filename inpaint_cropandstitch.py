@@ -269,8 +269,8 @@ def growcontextarea_m(context, mask, x, y, w, h, extend_factor):
     if new_h < 0 or new_w < 0:
         new_x = 0
         new_y = 0
-        new_w = 1
-        new_h = 1
+        new_w = mask.shape[2]
+        new_h = mask.shape[1]
 
     return new_context, new_x, new_y, new_w, new_h
 
