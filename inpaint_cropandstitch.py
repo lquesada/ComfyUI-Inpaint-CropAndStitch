@@ -496,7 +496,7 @@ class InpaintCropImproved:
                 "upscale_algorithm": (["nearest", "bilinear", "bicubic", "lanczos", "box", "hamming"], {"default": "bicubic"}),
 
                 # Pre-resize input image
-                "preresize": ("BOOLEAN", {"default": False}),
+                "preresize": ("BOOLEAN", {"default": False, "tooltip": "Resize the original image before processing."}),
                 "preresize_mode": (["ensure minimum resolution", "ensure maximum resolution", "ensure minimum and maximum resolution"], {"default": "ensure minimum resolution"}),
                 "preresize_min_width": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "preresize_min_height": ("INT", {"default": 1024, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
@@ -504,24 +504,24 @@ class InpaintCropImproved:
                 "preresize_max_height": ("INT", {"default": nodes.MAX_RESOLUTION, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
 
                 # Mask manipulation
-                "mask_fill_holes": ("BOOLEAN", {"default": True}),
-                "mask_expand_pixels": ("INT", {"default": 0, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1}),
-                "mask_invert": ("BOOLEAN", {"default": False}),
-                "mask_blend_pixels": ("INT", {"default": 32, "min": 0, "max": 64, "step": 1}),
-                "mask_hipass_filter": ("FLOAT", {"default": 0.1, "min": 0, "max": 1, "step": 0.01}),
+                "mask_fill_holes": ("BOOLEAN", {"default": True, "tooltip": "Mark as masked any areas fully enclosed by mask."}),
+                "mask_expand_pixels": ("INT", {"default": 0, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1, "tooltip": "Expand the mask by a certain amount of pixels before processing."}),
+                "mask_invert": ("BOOLEAN", {"default": False,"tooltip": "Invert mask so that anything masked will be kept."}),
+                "mask_blend_pixels": ("INT", {"default": 32, "min": 0, "max": 64, "step": 1, "tooltip": "How many pixels to blend into the original image."}),
+                "mask_hipass_filter": ("FLOAT", {"default": 0.1, "min": 0, "max": 1, "step": 0.01, "tooltip": "Ignore mask values lower than this value."}),
 
                 # Extend image for outpainting
-                "extend_for_outpainting": ("BOOLEAN", {"default": False}),
+                "extend_for_outpainting": ("BOOLEAN", {"default": False, "tooltip": "Extend the image for outpainting."}),
                 "extend_up_factor": ("FLOAT", {"default": 1.0, "min": 0.01, "max": 100.0, "step": 0.01}),
                 "extend_down_factor": ("FLOAT", {"default": 1.0, "min": 0.01, "max": 100.0, "step": 0.01}),
                 "extend_left_factor": ("FLOAT", {"default": 1.0, "min": 0.01, "max": 100.0, "step": 0.01}),
                 "extend_right_factor": ("FLOAT", {"default": 1.0, "min": 0.01, "max": 100.0, "step": 0.01}),
 
                 # Context
-                "context_from_mask_extend_factor": ("FLOAT", {"default": 1.2, "min": 1.0, "max": 100.0, "step": 0.01}),
+                "context_from_mask_extend_factor": ("FLOAT", {"default": 1.2, "min": 1.0, "max": 100.0, "step": 0.01, "tooltip": "Grow the context area from the mask by a certain factor in every direction. For example, 1.5 grabs extra 50% up, down, left, and right as context."}),
 
                 # Output
-                "output_resize_to_target_size": ("BOOLEAN", {"default": True}),
+                "output_resize_to_target_size": ("BOOLEAN", {"default": True, "tooltip": "Force a specific resolution for sampling."}),
                 "output_target_width": ("INT", {"default": 512, "min": 64, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "output_target_height": ("INT", {"default": 512, "min": 64, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "output_padding": (["0", "8", "16", "32", "64", "128", "256", "512"], {"default": "32"}),
@@ -535,6 +535,7 @@ class InpaintCropImproved:
 
     FUNCTION = "inpaint_crop"
     CATEGORY = "inpaint"
+    DESCRIPTION = "Crops an image around a mask for inpainting, the optional context mask defines an extra area to keep for the context."
 
 
     # Remove the following # to turn on debug mode (extra outputs, print statements)
@@ -858,6 +859,7 @@ class InpaintStitchImproved:
         }
 
     CATEGORY = "inpaint"
+    DESCRIPTION = "Stitches an image cropped with Inpaint Crop back into the original image"
 
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)

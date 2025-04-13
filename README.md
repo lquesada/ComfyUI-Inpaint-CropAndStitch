@@ -8,7 +8,7 @@ Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 
 The '✂️ Inpaint Crop' and '✂️ Inpaint Stitch' nodes enable inpainting only on masked area very easily
 
-"✂️  Inpaint Crop" crops the image around the masked area, taking care of pre-resizing the image if desired, extending it for outpainting, filling mask holes, growing or blurring the mask, cutting around a larger context area, and resizing the cropped area to a target resolution.
+"✂️  Inpaint Crop" crops the image around the masked area (optionally with a context area that marks all parts relevant to the context), taking care of pre-resizing the image if desired, extending it for outpainting, filling mask holes, growing or blurring the mask, cutting around a larger context area, and resizing the cropped area to a target resolution.
 
 The cropped image can be used in any standard workflow for sampling.
 
