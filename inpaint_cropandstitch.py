@@ -539,7 +539,7 @@ class InpaintCropImproved:
 
 
     # Remove the following # to turn on debug mode (extra outputs, print statements)
-    '''
+    #'''
     DEBUG_MODE = False
     RETURN_TYPES = ("STITCHER", "IMAGE", "MASK")
     RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
