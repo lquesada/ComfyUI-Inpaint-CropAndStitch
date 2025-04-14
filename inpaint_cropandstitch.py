@@ -234,10 +234,10 @@ def growcontextarea_m(context, mask, x, y, w, h, extend_factor):
     img_h, img_w = mask.shape[1], mask.shape[2]
 
     # Compute intended growth in each direction
-    grow_left = int(round(w * extend_factor / 2.0))
-    grow_right = int(round(w * extend_factor / 2.0))
-    grow_up = int(round(h * extend_factor / 2.0))
-    grow_down = int(round(h * extend_factor / 2.0))
+    grow_left = int(round(w * (extend_factor-1.0) / 2.0))
+    grow_right = int(round(w * (extend_factor-1.0) / 2.0))
+    grow_up = int(round(h * (extend_factor-1.0) / 2.0))
+    grow_down = int(round(h * (extend_factor-1.0) / 2.0))
 
     # Try to grow left, but clamp at 0
     new_x = x - grow_left
@@ -539,7 +539,7 @@ class InpaintCropImproved:
 
 
     # Remove the following # to turn on debug mode (extra outputs, print statements)
-    #'''
+    '''
     DEBUG_MODE = False
     RETURN_TYPES = ("STITCHER", "IMAGE", "MASK")
     RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
@@ -786,7 +786,7 @@ class InpaintCropImproved:
             DEBUG_context_from_mask = context.clone()
             DEBUG_context_from_mask_location = debug_context_location_in_image(image, x, y, w, h)
 
-        if context_from_mask_extend_factor != 1:
+        if context_from_mask_extend_factor >= 1.01:
             context, x, y, w, h = growcontextarea_m(context, mask, x, y, w, h, context_from_mask_extend_factor)
         if self.DEBUG_MODE:
             DEBUG_context_expand = context.clone()
