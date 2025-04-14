@@ -47,9 +47,9 @@ Note: this video tutorial is for the previous version of the nodes, but still it
 ## Example (Stable Diffusion)
 This example inpaints by sampling on a small section of the larger image, upscaling to fit 512x512, then stitching and blending back in the original image.
 
-Download the following example workflow from [here](inpaint-cropandstitch_example_workflow.json) or drag and drop the screenshot into ComfyUI.
+Download the following example workflow from [here](example_workflows/inpaint_sd15.json) or drag and drop the screenshot into ComfyUI.
 
-![Workflow](inpaint-cropandstitch_example_workflow.png)
+![Workflow](inpaint_sd15.png)
 
 ## Example (Flux)
 This example uses Flux. Requires the GGUF nodes.
@@ -62,9 +62,9 @@ Models used:
 - `clip_l` from [here](https://huggingface.co/comfyanonymous/flux_text_encoders/blob/main/clip_l.safetensors). Put it in models/clip/.
 - `ae VAE` from [here](https://huggingface.co/black-forest-labs/FLUX.1-schnell/blob/main/ae.safetensors). Put it in models/vae/.
 
-Download the following example workflow from [here](inpaint-cropandstitch_flux_example_workflow.json) or drag and drop the screenshot into ComfyUI.
+Download the following example workflow from [here](example_workflows/inpaint_flux.json) or drag and drop the screenshot into ComfyUI.
 
-![Workflow](inpaint-cropandstitch_flux_example_workflow.png)
+![Workflow](inpaint_flux.png)
 
 # Installation Instructions
 
