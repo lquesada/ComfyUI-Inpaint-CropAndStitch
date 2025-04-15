@@ -782,24 +782,32 @@ class InpaintCropImproved:
             DEBUG_extend_mask = mask.clone()
 
         context, x, y, w, h = findcontextarea_m(mask)
+        # If no mask, mask everything for some inpainting.
+        if x == -1 or w == -1 or h == -1 or y == -1:
+            x, y, w, h = 0, 0, image.shape[2], image.shape[1]
+            context = mask[:, y:y+h, x:x+w]
         if self.DEBUG_MODE:
             DEBUG_context_from_mask = context.clone()
             DEBUG_context_from_mask_location = debug_context_location_in_image(image, x, y, w, h)
 
         if context_from_mask_extend_factor >= 1.01:
             context, x, y, w, h = growcontextarea_m(context, mask, x, y, w, h, context_from_mask_extend_factor)
+        # If no mask, mask everything for some inpainting.
+        if x == -1 or w == -1 or h == -1 or y == -1:
+            x, y, w, h = 0, 0, image.shape[2], image.shape[1]
+            context = mask[:, y:y+h, x:x+w]
         if self.DEBUG_MODE:
             DEBUG_context_expand = context.clone()
             DEBUG_context_expand_location = debug_context_location_in_image(image, x, y, w, h)
 
         context, x, y, w, h = combinecontextmask_m(context, mask, x, y, w, h, optional_context_mask)
-        if self.DEBUG_MODE:
-            DEBUG_context_with_context_mask = context.clone()
-            DEBUG_context_with_context_mask_location = debug_context_location_in_image(image, x, y, w, h)
-
         # If no mask, mask everything for some inpainting.
         if x == -1 or w == -1 or h == -1 or y == -1:
             x, y, w, h = 0, 0, image.shape[2], image.shape[1]
+            context = mask[:, y:y+h, x:x+w]
+        if self.DEBUG_MODE:
+            DEBUG_context_with_context_mask = context.clone()
+            DEBUG_context_with_context_mask_location = debug_context_location_in_image(image, x, y, w, h)
 
         if not output_resize_to_target_size:
             canvas_image, cto_x, cto_y, cto_w, cto_h, cropped_image, cropped_mask, ctc_x, ctc_y, ctc_w, ctc_h = crop_magic_im(image, mask, x, y, w, h, w, h, output_padding, downscale_algorithm, upscale_algorithm)
