@@ -769,7 +769,7 @@ class InpaintCropImproved:
         if self.DEBUG_MODE:
             DEBUG_blur_mask = mask.clone()
 
-        if mask_hipass_filter > 0:
+        if mask_hipass_filter >= 0.01:
             mask = hipassfilter_m(mask, mask_hipass_filter)
             optional_context_mask = hipassfilter_m(optional_context_mask, mask_hipass_filter)
         if self.DEBUG_MODE:
