@@ -66,6 +66,17 @@ Download the following example workflow from [here](example_workflows/inpaint_fl
 
 ![Workflow](inpaint_flux.png)
 
+## Example (Large resolution)
+This example uses SD 1.5 to sample on a section of the larger image. Then it upscales the sampled image by 4x using an external model and applies a hiRes fix. Then it blends it back into the original image.
+
+Models used:
+
+- `4x Ultrasharp` from [here](https://huggingface.co/lokCX/4x-Ultrasharp/blob/main/4x-UltraSharp.pth).
+
+Download the following example workflow from [here](example_workflows/inpaint_hires.json) or drag and drop the screenshot into ComfyUI.
+
+![Workflow](inpaint_hires.png)
+
 # Installation Instructions
 
 Install via ComfyUI-Manager or go to the custom_nodes/ directory and run ```$ git clone https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git```
