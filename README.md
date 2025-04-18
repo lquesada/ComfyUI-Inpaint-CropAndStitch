@@ -10,7 +10,7 @@ The '✂️ Inpaint Crop' and '✂️ Inpaint Stitch' nodes enable inpainting on
 
 "✂️  Inpaint Crop" crops the image around the masked area (optionally with a context area that marks all parts relevant to the context), taking care of pre-resizing the image if desired, extending it for outpainting, filling mask holes, growing or blurring the mask, cutting around a larger context area, and resizing the cropped area to a target resolution.
 
-The cropped image can be used in any standard workflow for sampling.
+The cropped image can be used in any standard workflow for sampling. It can even be rescaled up with any model (please keep the aspect ratio) and hiRes-fixed and it will be retrofit in the original image.
 
 Then, the "✂️  Inpaint Stitch" node stitches the inpainted image back into the original image without altering unmasked areas.
 
