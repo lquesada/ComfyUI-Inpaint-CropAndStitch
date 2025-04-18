@@ -73,7 +73,7 @@ def preresize_imm(image, mask, optional_context_mask, downscale_algorithm, upsca
         target_width = int(current_width * scale_factor)
         target_height = int(current_height * scale_factor)
 
-        image = rescale_i(image, target_width, target_height, upscale_algorithm)
+        image = rescale_i(image, target_width, target_height, rescale_algorithm)
         mask = rescale_m(mask, target_width, target_height, 'nearest') # Always nearest for efficiency
         optional_context_mask = rescale_m(optional_context_mask, target_width, target_height, 'nearest') # Always nearest for efficiency
         
@@ -880,7 +880,7 @@ class InpaintStitchImproved:
         results = []
 
         batch_size = inpainted_image.shape[0]
-        assert len(stitcher['cropped_to_canvas_x']) == batch_size, "Stitch size doesn't match image batch size"
+        assert len(stitcher['cropped_to_canvas_x']) == batch_size, "Stitch batch size doesn't match image batch size" # TODO reajusta
         for b in range(batch_size):
             one_image = inpainted_image[b]
             one_stitcher = {}
