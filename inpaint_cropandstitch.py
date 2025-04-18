@@ -880,14 +880,20 @@ class InpaintStitchImproved:
         results = []
 
         batch_size = inpainted_image.shape[0]
-        assert len(stitcher['cropped_to_canvas_x']) == batch_size, "Stitch batch size doesn't match image batch size" # TODO reajusta
+        assert len(stitcher['cropped_to_canvas_x']) == batch_size or len(stitcher['cropped_to_canvas_x']) == 1, "Stitch batch size doesn't match image batch size"
+        override = False
+        if len(stitcher['cropped_to_canvas_x']) != batch_size and len(stitcher['cropped_to_canvas_x']) == 1:
+            override = True
         for b in range(batch_size):
             one_image = inpainted_image[b]
             one_stitcher = {}
             for key in ['downscale_algorithm', 'upscale_algorithm', 'blend_pixels']:
                 one_stitcher[key] = stitcher[key]
             for key in ['canvas_to_orig_x', 'canvas_to_orig_y', 'canvas_to_orig_w', 'canvas_to_orig_h', 'canvas_image', 'cropped_to_canvas_x', 'cropped_to_canvas_y', 'cropped_to_canvas_w', 'cropped_to_canvas_h', 'cropped_mask_for_blend']:
-                one_stitcher[key] = stitcher[key][b]
+                if override: # One stitcher for many images, always read 0.
+                    one_stitcher[key] = stitcher[key][0]
+                else:
+                    one_stitcher[key] = stitcher[key][b]
             one_image = one_image.unsqueeze(0)
             one_image, = self.inpaint_stitch_single_image(one_stitcher, one_image)
             one_image = one_image.squeeze(0)
