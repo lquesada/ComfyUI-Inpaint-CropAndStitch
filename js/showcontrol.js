@@ -112,7 +112,8 @@ const findWidgetByName = (node, name) => {
 };
 
 const doesInputWithNameExist = (node, name) => {
-    return node.inputs ? node.inputs.some((input) => input.name === name) : false;
+    // See https://github.com/jags111/efficiency-nodes-comfyui/pull/315
+    return false;
 };
 
 const HIDDEN_TAG = "tschide";
