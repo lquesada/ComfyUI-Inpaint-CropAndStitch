@@ -154,6 +154,9 @@ app.registerExtension({
             // Store the original descriptor if it exists 
             let originalDescriptor = Object.getOwnPropertyDescriptor(w, 'value') || 
                 Object.getOwnPropertyDescriptor(Object.getPrototypeOf(w), 'value');
+            if (!originalDescriptor) {
+                originalDescriptor = Object.getOwnPropertyDescriptor(w.constructor.prototype, 'value');
+            }
 
             Object.defineProperty(w, 'value', {
                 get() {
