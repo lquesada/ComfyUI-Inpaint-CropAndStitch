@@ -525,6 +525,8 @@ class InpaintCropImproved:
                 "output_target_width": ("INT", {"default": 512, "min": 64, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "output_target_height": ("INT", {"default": 512, "min": 64, "max": nodes.MAX_RESOLUTION, "step": 1}),
                 "output_padding": (["0", "8", "16", "32", "64", "128", "256", "512"], {"default": "32"}),
+
+                "enable": ("BOOLEAN", {"default": True, "tooltip": "Enable/disable processing. When disabled, the node will pass through the input image and mask, and the stitching node will skip processing."}),
            },
            "optional": {
                 # Optional inputs
@@ -602,7 +604,12 @@ class InpaintCropImproved:
     #'''
 
  
-    def inpaint_crop(self, image, downscale_algorithm, upscale_algorithm, preresize, preresize_mode, preresize_min_width, preresize_min_height, preresize_max_width, preresize_max_height, extend_for_outpainting, extend_up_factor, extend_down_factor, extend_left_factor, extend_right_factor, mask_hipass_filter, mask_fill_holes, mask_expand_pixels, mask_invert, mask_blend_pixels, context_from_mask_extend_factor, output_resize_to_target_size, output_target_width, output_target_height, output_padding, mask=None, optional_context_mask=None):
+    def inpaint_crop(self, image, downscale_algorithm, upscale_algorithm, preresize, preresize_mode, preresize_min_width, preresize_min_height, preresize_max_width, preresize_max_height, extend_for_outpainting, extend_up_factor, extend_down_factor, extend_left_factor, extend_right_factor, mask_hipass_filter, mask_fill_holes, mask_expand_pixels, mask_invert, mask_blend_pixels, context_from_mask_extend_factor, output_resize_to_target_size, output_target_width, output_target_height, output_padding,enable=True, mask=None, optional_context_mask=None):
+        if not enable:
+            stitcher = {'is_skip': True}
+            if mask is None:
+                mask = torch.zeros_like(image[:, :, :, 0])
+            return (stitcher, image, mask)
         image = image.clone()
         if mask is not None:
             mask = mask.clone()
@@ -876,6 +883,8 @@ class InpaintStitchImproved:
 
 
     def inpaint_stitch(self, stitcher, inpainted_image):
+        if 'is_skip' in stitcher and stitcher['is_skip']:
+            return (inpainted_image,)
         inpainted_image = inpainted_image.clone()
         results = []
 
