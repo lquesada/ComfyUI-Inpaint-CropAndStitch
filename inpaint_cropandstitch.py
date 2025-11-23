@@ -104,7 +104,7 @@ def preresize_imm(image, mask, optional_context_mask, downscale_algorithm, upsca
 
 
 def fillholes_iterative_hipass_fill_m(samples):
-    thresholds = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+    thresholds = [1, 0.99, 0.97, 0.95, 0.93, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
     mask_np = samples.squeeze(0).cpu().numpy()
 
