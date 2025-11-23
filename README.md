@@ -88,6 +88,8 @@ Use "InpaintModelConditioning" instead of "VAE Encode (for Inpainting)" to be ab
 
 Enable "resize to target size" and set it to a preferred resolution for your model, e.g. 512x512 for SD 1.5, 1024x1024 for SDXL or Flux.
 
+If you mask an area and you can still see the original image through the rendered image, it is **very likely** that your mask is not fully opaque. Even if it looks fully opaque - the human brain cannot tell a difference between many shades of grey. Please make sure that the mask is 100% opaque, e.g. take a screenshot, check pixel values for 255, 255, 255 or #FFFFFF. If you use mask fill holes, check that the entire boundary is 255, 255, 255 or #FFFFFF e.g. with the fuzzy select tool in Gimp with threshold 0.
+
 # Changelog
 ## 2025-04-06
 - Published the improved version of the Crop and Stitch nodes.
