@@ -38,8 +38,8 @@ def preresize_imm(image, mask, optional_context_mask, downscale_algorithm, upsca
 
         scale_factor = max(scale_factor_min_width, scale_factor_min_height)
 
-        target_width = int(current_width * scale_factor)
-        target_height = int(current_height * scale_factor)
+        target_width = math.ceil(current_width * scale_factor)
+        target_height = math.ceil(current_height * scale_factor)
 
         image = rescale_i(image, target_width, target_height, upscale_algorithm)
         mask = rescale_m(mask, target_width, target_height, 'bilinear')
@@ -70,8 +70,12 @@ def preresize_imm(image, mask, optional_context_mask, downscale_algorithm, upsca
             scale_factor = scale_factor_max
             rescale_algorithm = downscale_algorithm  # Use downscale algorithm for max resolution
 
-        target_width = int(current_width * scale_factor)
-        target_height = int(current_height * scale_factor)
+        if scale_factor >= 1.0:
+            target_width = math.ceil(current_width * scale_factor)
+            target_height = math.ceil(current_height * scale_factor)
+        else:
+            target_width = int(current_width * scale_factor)
+            target_height = int(current_height * scale_factor)
 
         image = rescale_i(image, target_width, target_height, rescale_algorithm)
         mask = rescale_m(mask, target_width, target_height, 'nearest') # Always nearest for efficiency
