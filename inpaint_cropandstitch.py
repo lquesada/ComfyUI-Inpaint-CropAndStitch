@@ -41,7 +41,6 @@ def preresize_imm(image, mask, optional_context_mask, downscale_algorithm, upsca
         target_width = math.ceil(current_width * scale_factor)
         target_height = math.ceil(current_height * scale_factor)
 
-
         image = rescale_i(image, target_width, target_height, upscale_algorithm)
         mask = rescale_m(mask, target_width, target_height, 'bilinear')
         optional_context_mask = rescale_m(optional_context_mask, target_width, target_height, 'bilinear')
