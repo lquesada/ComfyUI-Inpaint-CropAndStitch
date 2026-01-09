@@ -1,6 +1,6 @@
 ComfyUI-Inpaint-CropAndStitch
 
-Copyright (c) 2024-2025, Luis Quesada Torres - https://github.com/lquesada | www.luisquesada.com
+Copyright (c) 2024-2026, Luis Quesada Torres - https://github.com/lquesada | www.luisquesada.com
 
 Check ComfyUI here: https://github.com/comfyanonymous/ComfyUI
 
@@ -23,6 +23,14 @@ The main advantages of inpainting only in a masked area with these nodes are:
   - It does not modify the unmasked part of the image, not even passing it through VAE encode and decode.
   - It takes care of blending automatically.
 
+# Support me!
+
+GenAI is not just for the sake of GenAI, but to unblock creativity and empower humans. I am not only a developer; I use GenAI myself to do **more** things **better** than I could otherwise do.
+
+Do you like this node? Check, listen to, or follow my GenAI music project [**Windlereye** on Spotify](https://open.spotify.com/artist/6GdiI8ZKeWhSY73WWOhbep) to support me!
+
+[![Windlereye on Spotify](windlereye.jpg)](https://open.spotify.com/artist/6GdiI8ZKeWhSY73WWOhbep)
+
 # Video Tutorial
 
 [![Video Tutorial](https://img.youtube.com/vi/mI0UWm7BNtQ/0.jpg)](https://www.youtube.com/watch?v=mI0UWm7BNtQ)
@@ -43,6 +51,7 @@ Note: this video tutorial is for the previous version of the nodes, but still it
 - `context_from_mask_extend_factor`: Extends the context area by a factor of the size of the mask. The higher this value is, the more area will be cropped around the mask for the model to have more context. 1 means do not grow. 2 means grow the same size of the mask across every direction.
 - `output_resize_to_target_size`: Forces that the cropped image has a specific resolution. This may involve resizing and extending out of the original image, but the stitch node reverts those changes to integrate the image seamlessly.
 - `output_padding`: Ensures that the cropped image width and height are a multiple of this padding value. Models require images to be padded to a certain value (8, 16, 32) to function properly.
+- `device_mode`: `cpu (compatible)` should always work but is slow, `gpu (much faster)` is much faster but may not work in all setups. Default is GPU given the performance improvements.
 
 ## Example (Stable Diffusion)
 This example inpaints by sampling on a small section of the larger image, upscaling to fit 512x512, then stitching and blending back in the original image.
@@ -91,6 +100,9 @@ Enable "resize to target size" and set it to a preferred resolution for your mod
 If you mask an area and you can still see the original image through the rendered image, it is **very likely** that your mask is not fully opaque. Even if it looks fully opaque - the human brain cannot tell a difference between many shades of grey. Please make sure that the mask is 100% opaque, e.g. take a screenshot, check pixel values for 255, 255, 255 or #FFFFFF. If you use mask fill holes, check that the entire boundary is 255, 255, 255 or #FFFFFF e.g. with the fuzzy select tool in Gimp with threshold 0.
 
 # Changelog
+## 2026-01-09
+- Huge performance improvement of 30x-100x by adding GPU support (new default is GPU, CPU is available as an option for fallback).
+- Clean up: Removed the long-deprecated old versions.
 ## 2025-04-06
 - Published the improved version of the Crop and Stitch nodes.
 - Improved: Stitching is now way more precise. In the previous version, stitching an image back into place could shift it by one pixel. That will not happen anymore.
