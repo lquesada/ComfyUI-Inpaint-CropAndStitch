@@ -445,6 +445,44 @@ class CPUProcessorLogic(ProcessorLogic):
                     overflow = (new_h - image_h) // 2
                     new_y = -overflow
 
+        # Step 3b: When not resizing output, ensure dimensions are at least target dimensions
+        # This ensures output_padding works correctly even without resize (Option A: expand context, keep centered)
+        if not resize_output:
+            if new_w < target_w:
+                grow_w = target_w - new_w
+                new_x -= grow_w // 2
+                new_w = target_w
+                # Recalculate bounds
+                if new_x < 0:
+                    shift = -new_x
+                    if new_x + new_w + shift <= image_w:
+                        new_x += shift
+                    else:
+                        new_x = -((new_w - image_w) // 2)
+                elif new_x + new_w > image_w:
+                    overflow = new_x + new_w - image_w
+                    if new_x - overflow >= 0:
+                        new_x -= overflow
+                    else:
+                        new_x = -((new_w - image_w) // 2)
+            if new_h < target_h:
+                grow_h = target_h - new_h
+                new_y -= grow_h // 2
+                new_h = target_h
+                # Recalculate bounds
+                if new_y < 0:
+                    shift = -new_y
+                    if new_y + new_h + shift <= image_h:
+                        new_y += shift
+                    else:
+                        new_y = -((new_h - image_h) // 2)
+                elif new_y + new_h > image_h:
+                    overflow = new_y + new_h - image_h
+                    if new_y - overflow >= 0:
+                        new_y -= overflow
+                    else:
+                        new_y = -((new_h - image_h) // 2)
+
         # Step 4: Grow the image to accommodate the new context area
         up_padding, down_padding, left_padding, right_padding = 0, 0, 0, 0
 
@@ -969,6 +1007,44 @@ class GPUProcessorLogic(ProcessorLogic):
                     overflow = (new_h - image_h) // 2
                     new_y = -overflow
 
+        # Step 3b: When not resizing output, ensure dimensions are at least target dimensions
+        # This ensures output_padding works correctly even without resize (Option A: expand context, keep centered)
+        if not resize_output:
+            if new_w < target_w:
+                grow_w = target_w - new_w
+                new_x -= grow_w // 2
+                new_w = target_w
+                # Recalculate bounds
+                if new_x < 0:
+                    shift = -new_x
+                    if new_x + new_w + shift <= image_w:
+                        new_x += shift
+                    else:
+                        new_x = -((new_w - image_w) // 2)
+                elif new_x + new_w > image_w:
+                    overflow = new_x + new_w - image_w
+                    if new_x - overflow >= 0:
+                        new_x -= overflow
+                    else:
+                        new_x = -((new_w - image_w) // 2)
+            if new_h < target_h:
+                grow_h = target_h - new_h
+                new_y -= grow_h // 2
+                new_h = target_h
+                # Recalculate bounds
+                if new_y < 0:
+                    shift = -new_y
+                    if new_y + new_h + shift <= image_h:
+                        new_y += shift
+                    else:
+                        new_y = -((new_h - image_h) // 2)
+                elif new_y + new_h > image_h:
+                    overflow = new_y + new_h - image_h
+                    if new_y - overflow >= 0:
+                        new_y -= overflow
+                    else:
+                        new_y = -((new_h - image_h) // 2)
+
         # Step 4: Grow the image to accommodate the new context area
         up_padding, down_padding, left_padding, right_padding = 0, 0, 0, 0
 
@@ -1003,9 +1079,9 @@ class GPUProcessorLogic(ProcessorLogic):
 
         # Fill the new extended areas with the edge values of the image
         if up_padding > 0:
-            expanded_image[:, :, :up_padding, left_padding:left_padding + image_w] = image[:, :, 0:1, left_padding:left_padding + image_w].repeat(1, 1, up_padding, 1)
+            expanded_image[:, :, :up_padding, left_padding:left_padding + image_w] = expanded_image[:, :, up_padding:up_padding + 1, left_padding:left_padding + image_w].repeat(1, 1, up_padding, 1)
         if down_padding > 0:
-            expanded_image[:, :, -down_padding:, left_padding:left_padding + image_w] = image[:, :, -1:, left_padding:left_padding + image_w].repeat(1, 1, down_padding, 1)
+            expanded_image[:, :, -down_padding:, left_padding:left_padding + image_w] = expanded_image[:, :, up_padding + image_h - 1:up_padding + image_h, left_padding:left_padding + image_w].repeat(1, 1, down_padding, 1)
         if left_padding > 0:
             expanded_image[:, :, up_padding:up_padding + image_h, :left_padding] = expanded_image[:, :, up_padding:up_padding + image_h, left_padding:left_padding+1].repeat(1, 1, 1, left_padding)
         if right_padding > 0:
