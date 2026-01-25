@@ -1578,6 +1578,9 @@ class InpaintStitchImproved:
             "required": {
                 "stitcher": ("STITCHER",),
                 "inpainted_image": ("IMAGE",),
+            },
+            "optional": {
+                "accumulate": ("BOOLEAN", {"default": False, "tooltip": "When enabled, all inpainted regions are combined into a single output image. Use this when you have multiple masks for different regions of the same image and want them all merged into one result."}),
             }
         }
 
@@ -1590,10 +1593,10 @@ class InpaintStitchImproved:
     FUNCTION = "inpaint_stitch"
 
 
-    def inpaint_stitch(self, stitcher, inpainted_image):
+    def inpaint_stitch(self, stitcher, inpainted_image, accumulate=False):
         inpainted_image = inpainted_image.clone()
         results = []
-        
+
         device_mode = stitcher.get('device_mode', 'cpu (compatible)')
 
         if device_mode == "gpu (much faster)":
@@ -1614,15 +1617,21 @@ class InpaintStitchImproved:
         override = False
         if len(stitcher['cropped_to_canvas_x']) != batch_size and len(stitcher['cropped_to_canvas_x']) == 1:
             override = True
-        
+
+        if accumulate:
+            # Accumulate all inpainted regions into a single output image
+            result_image = self.inpaint_stitch_accumulated(stitcher, inpainted_image, processor, batch_size, override)
+            result_image = result_image.cpu()
+            return (result_image,)
+
         for i in range(batch_size):
             one_image = inpainted_image[i:i+1]
-            
+
             one_stitcher = {}
             for key in ['downscale_algorithm', 'upscale_algorithm', 'blend_pixels']:
                 one_stitcher[key] = stitcher[key]
             for key in ['canvas_to_orig_x', 'canvas_to_orig_y', 'canvas_to_orig_w', 'canvas_to_orig_h', 'canvas_image', 'cropped_to_canvas_x', 'cropped_to_canvas_y', 'cropped_to_canvas_w', 'cropped_to_canvas_h', 'cropped_mask_for_blend']:
-                if override: 
+                if override:
                     one_stitcher[key] = stitcher[key][0]
                 else:
                     one_stitcher[key] = stitcher[key][i]
@@ -1634,6 +1643,91 @@ class InpaintStitchImproved:
         result_batch = result_batch.cpu()
 
         return (result_batch,)
+
+    def inpaint_stitch_accumulated(self, stitcher, inpainted_image, processor, batch_size, override):
+        """
+        Accumulates all inpainted regions into a single output image.
+
+        This method processes multiple mask regions that were cropped from the same
+        original image and combines all the inpainted results back into one image.
+        """
+        downscale_algorithm = stitcher['downscale_algorithm']
+        upscale_algorithm = stitcher['upscale_algorithm']
+
+        # Get original image dimensions from the first entry
+        cto_w = stitcher['canvas_to_orig_w'][0]
+        cto_h = stitcher['canvas_to_orig_h'][0]
+        cto_x = stitcher['canvas_to_orig_x'][0]
+        cto_y = stitcher['canvas_to_orig_y'][0]
+
+        # Extract the original image from the first canvas
+        first_canvas = stitcher['canvas_image'][0]
+        accumulator = first_canvas[:, cto_y:cto_y + cto_h, cto_x:cto_x + cto_w].clone()
+
+        # Process each inpainted region and accumulate onto the result
+        for i in range(batch_size):
+            idx = 0 if override else i
+            one_image = inpainted_image[i:i+1]
+
+            # Get stitcher data for this region
+            canvas_image = stitcher['canvas_image'][idx]
+            ctc_x = stitcher['cropped_to_canvas_x'][idx]
+            ctc_y = stitcher['cropped_to_canvas_y'][idx]
+            ctc_w = stitcher['cropped_to_canvas_w'][idx]
+            ctc_h = stitcher['cropped_to_canvas_h'][idx]
+            item_cto_x = stitcher['canvas_to_orig_x'][idx]
+            item_cto_y = stitcher['canvas_to_orig_y'][idx]
+            item_cto_w = stitcher['canvas_to_orig_w'][idx]
+            item_cto_h = stitcher['canvas_to_orig_h'][idx]
+            mask = stitcher['cropped_mask_for_blend'][idx]  # shape: [1, H, W]
+
+            # Resize inpainted image and mask to match the cropped-to-canvas size
+            B, h, w, _ = one_image.shape
+            if ctc_w > w or ctc_h > h:  # Upscaling
+                resized_image = processor.rescale_i(one_image, ctc_w, ctc_h, upscale_algorithm)
+                resized_mask = processor.rescale_m(mask, ctc_w, ctc_h, upscale_algorithm)
+            else:  # Downscaling
+                resized_image = processor.rescale_i(one_image, ctc_w, ctc_h, downscale_algorithm)
+                resized_mask = processor.rescale_m(mask, ctc_w, ctc_h, downscale_algorithm)
+
+            # Clamp mask to [0, 1]
+            resized_mask = resized_mask.clamp(0, 1)
+
+            # Calculate the overlap between the cropped region and the original region in canvas space
+            # Then map to original image coordinates
+            overlap_canvas_x1 = max(ctc_x, item_cto_x)
+            overlap_canvas_y1 = max(ctc_y, item_cto_y)
+            overlap_canvas_x2 = min(ctc_x + ctc_w, item_cto_x + item_cto_w)
+            overlap_canvas_y2 = min(ctc_y + ctc_h, item_cto_y + item_cto_h)
+
+            if overlap_canvas_x2 <= overlap_canvas_x1 or overlap_canvas_y2 <= overlap_canvas_y1:
+                # No overlap - this shouldn't happen in normal usage but skip if it does
+                continue
+
+            # Coordinates within the resized inpainted image/mask
+            inpaint_x1 = overlap_canvas_x1 - ctc_x
+            inpaint_y1 = overlap_canvas_y1 - ctc_y
+            inpaint_x2 = overlap_canvas_x2 - ctc_x
+            inpaint_y2 = overlap_canvas_y2 - ctc_y
+
+            # Coordinates within the original image (accumulator)
+            orig_x1 = overlap_canvas_x1 - item_cto_x
+            orig_y1 = overlap_canvas_y1 - item_cto_y
+            orig_x2 = overlap_canvas_x2 - item_cto_x
+            orig_y2 = overlap_canvas_y2 - item_cto_y
+
+            # Extract the relevant portions
+            inpaint_region = resized_image[:, inpaint_y1:inpaint_y2, inpaint_x1:inpaint_x2]
+            mask_region = resized_mask[:, inpaint_y1:inpaint_y2, inpaint_x1:inpaint_x2].unsqueeze(-1)
+            accum_region = accumulator[:, orig_y1:orig_y2, orig_x1:orig_x2]
+
+            # Blend: new = mask * inpainted + (1 - mask) * accumulator
+            blended = mask_region * inpaint_region + (1.0 - mask_region) * accum_region
+
+            # Write back to accumulator
+            accumulator[:, orig_y1:orig_y2, orig_x1:orig_x2] = blended
+
+        return accumulator
 
     def inpaint_stitch_single_image(self, stitcher, inpainted_image, processor):
         downscale_algorithm = stitcher['downscale_algorithm']
