@@ -1287,8 +1287,8 @@ class InpaintCropImproved:
         if device_mode == "gpu (much faster)":
             device = comfy.model_management.get_torch_device()
             image = image.to(device)
-            if mask is not None: mask = mask.to(device)
-            if optional_context_mask is not None: optional_context_mask = optional_context_mask.to(device)
+            if mask is not None: mask = mask.to(device).float()
+            if optional_context_mask is not None: optional_context_mask = optional_context_mask.to(device).float()
             processor = GPUProcessorLogic()
         else:
             processor = CPUProcessorLogic()
