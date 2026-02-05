@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-inpaint-cropandstitch"
 description = "The '✂️ Inpaint Crop' and '✂️ Inpaint Stitch' nodes enable inpainting only on masked area very easily: crop the image around the masked area with the Crop node, then use any standard workflow for sampling, then connect the sampled image to the Stitch node, which will put it back in place in the original image. These nodes enable faster sampling of smaller areas and take care of downsampling and upsampling to fit specific model and resource needs."
-version = "3.0.2"
+version = "3.0.3"
 license = { file = "LICENSE" }
 
 [project.urls]
