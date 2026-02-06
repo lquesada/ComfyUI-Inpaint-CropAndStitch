@@ -1231,7 +1231,7 @@ class InpaintCropImproved:
     DESCRIPTION = "Crops an image around a mask for inpainting, the optional context mask defines an extra area to keep for the context."
 
     # Remove the following # to turn on debug mode (extra outputs, print statements)
-    '''
+    #'''
     DEBUG_MODE = False
     RETURN_TYPES = ("STITCHER", "IMAGE", "MASK")
     RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
