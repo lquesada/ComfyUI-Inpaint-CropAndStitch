@@ -607,7 +607,7 @@ class GPUProcessorLogic(ProcessorLogic):
         algorithm_enum = getattr(Image, algorithm.upper())
         results = []
         for i in range(samples.shape[0]):
-            samples_pil: Image.Image = F.to_pil_image(samples[i].cpu()).resize((width, height), algorithm_enum)
+            samples_pil: Image.Image = F.to_pil_image(samples[i].float().cpu()).resize((width, height), algorithm_enum)
             results.append(F.to_tensor(samples_pil))
         samples = torch.stack(results, dim=0).to(original_device)
         samples = samples.movedim(1, -1)
@@ -627,7 +627,7 @@ class GPUProcessorLogic(ProcessorLogic):
         algorithm_enum = getattr(Image, algorithm.upper())
         results = []
         for i in range(samples.shape[0]):
-            samples_pil: Image.Image = F.to_pil_image(samples[i].cpu()).resize((width, height), algorithm_enum)
+            samples_pil: Image.Image = F.to_pil_image(samples[i].float().cpu()).resize((width, height), algorithm_enum)
             results.append(F.to_tensor(samples_pil).squeeze(0))
         samples = torch.stack(results, dim=0).to(original_device)
         return samples
