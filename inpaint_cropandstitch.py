@@ -878,8 +878,8 @@ class GPUProcessorLogic(ProcessorLogic):
         device = mask.device
         
         # Find which rows and columns have any mask content
-        any_y = mask.max(dim=2).values > 0.5 # [B, H]
-        any_x = mask.max(dim=1).values > 0.5 # [B, W]
+        any_y = mask.max(dim=2).values > 0 # [B, H]
+        any_x = mask.max(dim=1).values > 0 # [B, W]
         
         def get_min_max(any_dim, size):
             indices = torch.arange(size, device=device).unsqueeze(0).expand(B, -1)
