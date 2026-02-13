@@ -877,8 +877,9 @@ class GPUProcessorLogic(ProcessorLogic):
         # Note: Uses > 0 threshold to match CPU behavior (torch.nonzero).
         # This ensures the hipass filter (applied upstream) is the sole threshold
         # for determining which mask pixels count as content.
-        # After hipass filtering (values < threshold set to 0), any remaining
-        # non-zero value represents valid mask content >= the user's threshold.
+        # After hipass filtering (see hipassfilter_m, called before this function),
+        # values < threshold are set to 0, so any remaining non-zero value
+        # represents valid mask content >= the user's threshold.
         B, H, W = mask.shape
         device = mask.device
         
