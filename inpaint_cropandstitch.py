@@ -874,12 +874,18 @@ class GPUProcessorLogic(ProcessorLogic):
 
     def batched_findcontextarea_m(self, mask):
         # Optimized GPU implementation using parallel max/where
+        # Note: Uses > 0 threshold to match CPU behavior (torch.nonzero).
+        # This ensures the hipass filter (applied upstream) is the sole threshold
+        # for determining which mask pixels count as content.
+        # After hipass filtering (see hipassfilter_m, called before this function),
+        # values < threshold are set to 0, so any remaining non-zero value
+        # represents valid mask content >= the user's threshold.
         B, H, W = mask.shape
         device = mask.device
         
-        # Find which rows and columns have any mask content
-        any_y = mask.max(dim=2).values > 0.5 # [B, H]
-        any_x = mask.max(dim=1).values > 0.5 # [B, W]
+        # Find which rows and columns have any mask content (any non-zero value)
+        any_y = mask.max(dim=2).values > 0 # [B, H]
+        any_x = mask.max(dim=1).values > 0 # [B, W]
         
         def get_min_max(any_dim, size):
             indices = torch.arange(size, device=device).unsqueeze(0).expand(B, -1)
@@ -1198,7 +1204,7 @@ class InpaintCropImproved:
                 "mask_expand_pixels": ("INT", {"default": 0, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1, "tooltip": "Expand the mask by a certain amount of pixels before processing."}),
                 "mask_invert": ("BOOLEAN", {"default": False,"tooltip": "Invert mask so that anything masked will be kept."}),
                 "mask_blend_pixels": ("INT", {"default": 32, "min": 0, "max": 64, "step": 1, "tooltip": "How many pixels to blend into the original image."}),
-                "mask_hipass_filter": ("FLOAT", {"default": 0.1, "min": 0, "max": 1, "step": 0.01, "tooltip": "Ignore mask values lower than this value."}),
+                "mask_hipass_filter": ("FLOAT", {"default": 0.1, "min": 0, "max": 1, "step": 0.01, "tooltip": "Ignore mask values lower than this threshold. Any pixel >= this value will be treated as masked content in both CPU and GPU modes."}),
 
                 # Extend image for outpainting
                 "extend_for_outpainting": ("BOOLEAN", {"default": False, "tooltip": "Extend the image for outpainting."}),
