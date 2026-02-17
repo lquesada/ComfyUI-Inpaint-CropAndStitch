@@ -140,6 +140,9 @@ def new_gpu_fillholes(samples):
 # ===================================================================
 # Test helpers
 # ===================================================================
+ATOL = 1e-6  # absolute tolerance for floating-point comparisons
+
+
 def make_pure_white_mask(size=512):
     """Pure-white mask (all 1.0) – only threshold=1.0 is active."""
     return torch.ones(1, size, size)
@@ -193,7 +196,9 @@ if __name__ == "__main__":
     # 1. SPEED COMPARISON
     # ------------------------------------------------------------------
     print("=" * 72)
-    print("SPEED COMPARISON (CPU-only machine, times in ms, 5 runs averaged)")
+    has_cuda = torch.cuda.is_available()
+    env = "CUDA GPU" if has_cuda else "CPU-only (no GPU)"
+    print(f"SPEED COMPARISON (environment: {env}, times in ms, 5 runs averaged)")
     print("=" * 72)
 
     for mask_name, mask_fn in [
@@ -234,8 +239,8 @@ if __name__ == "__main__":
 
     diff_old = (cpu_out - old_out).abs().max().item()
     diff_new = (cpu_out - new_out).abs().max().item()
-    print(f"  max|CPU − Old GPU|  = {diff_old:.6f}  {'✓ PASS' if diff_old < 1e-6 else '✗ FAIL'}")
-    print(f"  max|CPU − New GPU|  = {diff_new:.6f}  {'✓ PASS' if diff_new < 1e-6 else '✗ FAIL'}")
+    print(f"  max|CPU − Old GPU|  = {diff_old:.6f}  {'✓ PASS' if diff_old < ATOL else '✗ FAIL'}")
+    print(f"  max|CPU − New GPU|  = {diff_new:.6f}  {'✓ PASS' if diff_new < ATOL else '✗ FAIL'}")
 
     # ------------------------------------------------------------------
     # 3. CORRECTNESS – sub-0.5 ring (old GPU bug, new GPU must fix)
@@ -303,13 +308,13 @@ if __name__ == "__main__":
     # Detailed per-threshold correctness
     print(f"\n  Pixel-level differences (CPU vs New GPU):")
     diff_map = (cpu_out - new_out).abs()
-    n_diff = (diff_map > 1e-6).sum().item()
+    n_diff = (diff_map > ATOL).sum().item()
     total = cpu_out.numel()
     print(f"    Differing pixels: {n_diff}/{total}  ({100*n_diff/total:.1f}%)")
     if n_diff > 0:
         print(f"    Max absolute diff: {diff_map.max().item():.6f}")
         print(f"    Mean absolute diff (over differing pixels): "
-              f"{diff_map[diff_map > 1e-6].mean().item():.6f}")
+              f"{diff_map[diff_map > ATOL].mean().item():.6f}")
 
     print("\n" + "=" * 72)
     print("DONE")
