@@ -6,8 +6,29 @@ Compares three implementations:
   2. Old GPU – single hardcoded >0.5 threshold flood-fill (the buggy version)
   3. New GPU – iterates all 14 thresholds with skip optimization (the fix)
 
-Run:
+Running the benchmark
+---------------------
+The GPU implementations use PyTorch tensor operations (``max_pool2d``, etc.)
+that are designed to run on a CUDA device.  **When run on a CPU-only machine
+these operations are significantly slower than scipy's native C code**, which
+is why the "New GPU" times may appear slower than "CPU" in a CPU-only
+environment.  To get a fair comparison you must run the GPU benchmarks on an
+actual CUDA device.
+
+.. code-block:: bash
+
+    # CPU-only benchmark (GPU implementations still use CPU tensors):
+    python test_fillholes_benchmark.py --device cpu
+
+    # CUDA benchmark (requires a machine with an NVIDIA GPU + CUDA):
+    python test_fillholes_benchmark.py --device cuda
+
+    # Auto-detect (uses CUDA if available, otherwise falls back to CPU):
     python test_fillholes_benchmark.py
+
+The ``--device`` flag controls where the GPU implementation tensors are
+placed.  The CPU (scipy) implementation always runs on the CPU regardless
+of this flag.
 
 Why CPU and GPU results can still differ
 ----------------------------------------
@@ -40,6 +61,7 @@ For purely white (1.0) masks, these differences vanish because there is only
 one threshold level (1.0) and the mask fills the entire image.
 """
 
+import argparse
 import time
 import numpy as np
 import torch
@@ -172,14 +194,26 @@ def make_multi_threshold_mask(size=64):
 # Benchmark runner
 # ===================================================================
 def bench(fn, mask, label, warmup=1, repeats=5):
-    """Time *fn* on *mask* and return (label, mean_ms)."""
+    """Time *fn* on *mask* and return (label, mean_ms).
+
+    If the mask lives on a CUDA device, ``torch.cuda.synchronize()`` is
+    called before each timing boundary to ensure we measure actual GPU
+    execution time rather than just kernel-launch overhead.
+    """
+    use_cuda = mask.is_cuda
     for _ in range(warmup):
         fn(mask.clone())
+        if use_cuda:
+            torch.cuda.synchronize()
     times = []
     for _ in range(repeats):
         m = mask.clone()
+        if use_cuda:
+            torch.cuda.synchronize()
         t0 = time.perf_counter()
         fn(m)
+        if use_cuda:
+            torch.cuda.synchronize()
         t1 = time.perf_counter()
         times.append((t1 - t0) * 1000)
     mean = sum(times) / len(times)
@@ -190,31 +224,71 @@ def bench(fn, mask, label, warmup=1, repeats=5):
 # Main
 # ===================================================================
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Benchmark and correctness tests for fillholes implementations.",
+        epilog="""\
+Examples:
+  python test_fillholes_benchmark.py                  # auto-detect device
+  python test_fillholes_benchmark.py --device cpu     # force CPU tensors
+  python test_fillholes_benchmark.py --device cuda    # force CUDA tensors
+
+Note: The "CPU (reference)" implementation always runs on the CPU via scipy
+regardless of --device.  The --device flag controls where the GPU (PyTorch)
+implementations place their tensors.  On a CPU-only machine the GPU
+implementations will be slower than scipy because PyTorch's tensor ops
+have more overhead than scipy's native C code when no CUDA acceleration
+is available.
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--device",
+        choices=["cpu", "cuda"],
+        default=None,
+        help="Device for GPU implementations (default: auto-detect)",
+    )
+    args = parser.parse_args()
+
+    if args.device is not None:
+        device = torch.device(args.device)
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     torch.set_grad_enabled(False)
+
+    device_label = str(device)
+    if device.type == "cuda" and torch.cuda.is_available():
+        device_label += f" ({torch.cuda.get_device_name(device)})"
 
     # ------------------------------------------------------------------
     # 1. SPEED COMPARISON
     # ------------------------------------------------------------------
     print("=" * 72)
-    has_cuda = torch.cuda.is_available()
-    env = "CUDA GPU" if has_cuda else "CPU-only (no GPU)"
-    print(f"SPEED COMPARISON (environment: {env}, times in ms, 5 runs averaged)")
+    print(f"SPEED COMPARISON  (device: {device_label}, times in ms, 5 runs averaged)")
     print("=" * 72)
+    if device.type == "cpu":
+        print("NOTE: GPU implementations are running on CPU tensors.")
+        print("      PyTorch tensor ops have more overhead than scipy's")
+        print("      native C code without CUDA, so 'New GPU' will likely")
+        print("      appear slower than 'CPU'. Use --device cuda on a CUDA")
+        print("      machine for a fair GPU-vs-CPU comparison.")
+        print()
 
     for mask_name, mask_fn in [
         ("pure-white 512×512", lambda: make_pure_white_mask(512)),
         ("multi-threshold 64×64", lambda: make_multi_threshold_mask(64)),
     ]:
-        mask = mask_fn()
+        mask_cpu = mask_fn()           # always on CPU for the CPU bench
+        mask_dev = mask_cpu.to(device) # on chosen device for GPU benches
         print(f"\nMask: {mask_name}")
         print("-" * 50)
         results = []
-        for label, fn in [
-            ("CPU (reference)", cpu_fillholes),
-            ("Old GPU (single >0.5)", old_gpu_fillholes),
-            ("New GPU (14 thresholds)", new_gpu_fillholes),
+        for label, fn, bench_mask in [
+            ("CPU (reference)",        cpu_fillholes,     mask_cpu),
+            ("Old GPU (single >0.5)",  old_gpu_fillholes, mask_dev),
+            ("New GPU (14 thresholds)", new_gpu_fillholes, mask_dev),
         ]:
-            _, ms = bench(fn, mask, label)
+            _, ms = bench(fn, bench_mask, label)
             results.append((label, ms))
             print(f"  {label:30s}  {ms:8.2f} ms")
 
@@ -234,8 +308,8 @@ if __name__ == "__main__":
 
     mask = make_pure_white_mask(64)
     cpu_out = cpu_fillholes(mask.clone())
-    old_out = old_gpu_fillholes(mask.clone())
-    new_out = new_gpu_fillholes(mask.clone())
+    old_out = old_gpu_fillholes(mask.clone().to(device)).cpu()
+    new_out = new_gpu_fillholes(mask.clone().to(device)).cpu()
 
     diff_old = (cpu_out - old_out).abs().max().item()
     diff_new = (cpu_out - new_out).abs().max().item()
@@ -251,8 +325,8 @@ if __name__ == "__main__":
 
     mask = make_ring_mask(64, value=0.3)
     cpu_out = cpu_fillholes(mask.clone())
-    old_out = old_gpu_fillholes(mask.clone())
-    new_out = new_gpu_fillholes(mask.clone())
+    old_out = old_gpu_fillholes(mask.clone().to(device)).cpu()
+    new_out = new_gpu_fillholes(mask.clone().to(device)).cpu()
 
     hole_y, hole_x = 32, 32  # centre of hole
     cpu_val = cpu_out[0, hole_y, hole_x].item()
@@ -281,8 +355,8 @@ if __name__ == "__main__":
 
     mask = make_multi_threshold_mask(64)
     cpu_out = cpu_fillholes(mask.clone())
-    old_out = old_gpu_fillholes(mask.clone())
-    new_out = new_gpu_fillholes(mask.clone())
+    old_out = old_gpu_fillholes(mask.clone().to(device)).cpu()
+    new_out = new_gpu_fillholes(mask.clone().to(device)).cpu()
 
     diff_old = (cpu_out - old_out).abs().max().item()
     diff_new = (cpu_out - new_out).abs().max().item()
