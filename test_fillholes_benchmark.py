@@ -30,6 +30,24 @@ The ``--device`` flag controls where the GPU implementation tensors are
 placed.  The CPU (scipy) implementation always runs on the CPU regardless
 of this flag.
 
+CUDA benchmark results (NVIDIA GeForce RTX 5090)
+-------------------------------------------------
+On an RTX 5090, the new GPU implementation is:
+
+  * **Pure-white 512×512 mask** (common case – only threshold 1.0 is active):
+    New GPU = 1.59 ms vs CPU = 41.37 ms → **96% faster than CPU**.
+    New GPU = 1.59 ms vs Old GPU = 0.15 ms → 960% slower than old GPU,
+    but the old GPU was *incorrect* (ignored values ≤ 0.5).
+
+  * **Multi-threshold 64×64 mask** (all 14 thresholds active):
+    New GPU = 5.74 ms vs CPU = 1.37 ms → 319% slower than CPU.
+    New GPU = 5.74 ms vs Old GPU = 0.74 ms → 676% slower than old GPU.
+
+The multi-threshold case is slower than CPU because the flood-fill loop
+runs 14 times and each iteration is bounded by ``max(H, W)`` sequential
+``max_pool2d`` steps.  For very small masks (64×64), the CUDA kernel
+launch overhead dominates.  For larger masks the GPU advantage grows.
+
 Why CPU and GPU results can still differ
 ----------------------------------------
 Even though the new GPU implementation iterates the same 14 thresholds as
@@ -292,12 +310,20 @@ is available.
             results.append((label, ms))
             print(f"  {label:30s}  {ms:8.2f} ms")
 
-        # Ratios
+        # Speed comparisons (percentage-based)
         cpu_ms = results[0][1]
         old_ms = results[1][1]
         new_ms = results[2][1]
-        print(f"\n  New GPU / Old GPU ratio:  {new_ms / old_ms:.2f}×")
-        print(f"  New GPU / CPU ratio:      {new_ms / cpu_ms:.2f}×")
+
+        def pct_diff(target, baseline):
+            """Return (description, pct) e.g. ('faster', 96.2) or ('slower', 319.0)."""
+            pct = abs(target - baseline) / baseline * 100
+            return ("faster" if target < baseline else "slower"), pct
+
+        vs_cpu_dir, vs_cpu_pct = pct_diff(new_ms, cpu_ms)
+        vs_old_dir, vs_old_pct = pct_diff(new_ms, old_ms)
+        print(f"\n  New GPU is {vs_cpu_pct:.0f}% {vs_cpu_dir} than CPU")
+        print(f"  New GPU is {vs_old_pct:.0f}% {vs_old_dir} than old GPU")
 
     # ------------------------------------------------------------------
     # 2. CORRECTNESS – pure-white mask (all implementations must agree)
