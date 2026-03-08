@@ -689,7 +689,7 @@ class GPUProcessorLogic(ProcessorLogic):
         kernel_size = 2 * int(4.0 * sigma + 0.5) + 1
         
         # Create gaussian kernel
-        x = torch.arange(kernel_size, device=samples.device) - (kernel_size - 1) / 2
+        x = torch.arange(kernel_size, device=samples.device, dtype=samples.dtype) - (kernel_size - 1) / 2
         kernel_1d = torch.exp(-0.5 * (x / sigma).pow(2))
         kernel_1d = kernel_1d / kernel_1d.sum()
         
