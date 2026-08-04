@@ -687,40 +687,69 @@ class GPUProcessorLogic(ProcessorLogic):
         return inverted_mask
 
     def blur_m(self, samples, pixels):
-        sigma = pixels / 4
-    
-        # No blur requested
+        sigma = pixels / 4.0
+
         if sigma <= 0:
             return samples
-    
-        # Gaussian blur implementation on GPU using separable convolution
+
         kernel_size = 2 * int(4.0 * sigma + 0.5) + 1
-    
-        # Create 1D Gaussian kernel
+
         x = torch.arange(
             kernel_size,
             device=samples.device,
             dtype=samples.dtype
         ) - (kernel_size - 1) / 2
-    
-        kernel_1d = torch.exp(-0.5 * (x / sigma).pow(2))
+
+        kernel_1d = torch.exp(
+            -0.5 * (x / sigma).pow(2)
+        )
+
         kernel_1d = kernel_1d / kernel_1d.sum()
-    
-        # Horizontal and vertical kernels
-        kernel_horizontal = kernel_1d.view(1, 1, 1, kernel_size)
-        kernel_vertical = kernel_1d.view(1, 1, kernel_size, 1)
-    
+
+        kernel_horizontal = kernel_1d.view(
+            1,
+            1,
+            1,
+            kernel_size
+        )
+
+        kernel_vertical = kernel_1d.view(
+            1,
+            1,
+            kernel_size,
+            1
+        )
+
         mask_in = samples.unsqueeze(1)
+
         pad = kernel_size // 2
-    
+
         # Horizontal pass
-        mask_in = TF.pad(mask_in, (pad, pad, 0, 0), mode="reflect")
-        mask_in = TF.conv2d(mask_in, kernel_horizontal)
-    
+        mask_in = TF.pad(
+            mask_in,
+            (pad, pad, 0, 0),
+            mode="reflect"
+        )
+
+        mask_in = TF.conv2d(
+            mask_in,
+            kernel_horizontal,
+            groups=1
+        )
+
         # Vertical pass
-        mask_in = TF.pad(mask_in, (0, 0, pad, pad), mode="reflect")
-        mask_in = TF.conv2d(mask_in, kernel_vertical)
-    
+        mask_in = TF.pad(
+            mask_in,
+            (0, 0, pad, pad),
+            mode="reflect"
+        )
+
+        mask_in = TF.conv2d(
+            mask_in,
+            kernel_vertical,
+            groups=1
+        )
+
         return mask_in.squeeze(1).clamp(0.0, 1.0)
         
         # Reflect padding before convolution so the border stays solid
