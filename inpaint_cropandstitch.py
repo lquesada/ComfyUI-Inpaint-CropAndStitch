@@ -692,6 +692,7 @@ class GPUProcessorLogic(ProcessorLogic):
         if sigma <= 0:
             return samples
 
+        # Gaussian blur implementation on GPU using separable convolution
         kernel_size = 2 * int(4.0 * sigma + 0.5) + 1
 
         x = torch.arange(
