@@ -153,6 +153,8 @@ class CPUProcessorLogic(ProcessorLogic):
         return inverted_mask
 
     def blur_m(self, samples, pixels):
+        if pixels <= 0:
+            return samples
         sigma = pixels / 4 
         results = []
         for i in range(samples.shape[0]):
@@ -687,8 +689,10 @@ class GPUProcessorLogic(ProcessorLogic):
         return inverted_mask
 
     def blur_m(self, samples, pixels):
+        if pixels <= 0:
+            return samples
         sigma = pixels / 4
-        # Gaussian blur implementation on GPU
+        # Gaussian blur implementation on GPU (Separable 2-pass 1D convolution for memory optimization)
         kernel_size = 2 * int(4.0 * sigma + 0.5) + 1
         
         # Create gaussian kernel
@@ -696,15 +700,18 @@ class GPUProcessorLogic(ProcessorLogic):
         kernel_1d = torch.exp(-0.5 * (x / sigma).pow(2))
         kernel_1d = kernel_1d / kernel_1d.sum()
         
-        kernel_2d = kernel_1d.unsqueeze(1) * kernel_1d.unsqueeze(0)
-        kernel_2d = kernel_2d.expand(1, 1, kernel_size, kernel_size)
+        kernel_h = kernel_1d.view(1, 1, 1, kernel_size)
+        kernel_v = kernel_1d.view(1, 1, kernel_size, 1)
         
         mask_in = samples.unsqueeze(1)
         pad = kernel_size // 2
         
-        # Reflect padding before convolution so the border stays solid
-        mask_padded = TF.pad(mask_in, (pad, pad, pad, pad), mode='reflect')
-        blurred = TF.conv2d(mask_padded, kernel_2d, padding=0, groups=1)
+        # Reflect padding and separable 1D convolutions (horizontal then vertical)
+        padded_h = TF.pad(mask_in, (pad, pad, 0, 0), mode='reflect')
+        blurred_h = TF.conv2d(padded_h, kernel_h, padding=0)
+        
+        padded_v = TF.pad(blurred_h, (0, 0, pad, pad), mode='reflect')
+        blurred = TF.conv2d(padded_v, kernel_v, padding=0)
         
         return blurred.squeeze(1).clamp(0.0, 1.0)
 
