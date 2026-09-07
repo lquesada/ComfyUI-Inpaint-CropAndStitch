@@ -27,9 +27,9 @@ The main advantages of inpainting only in a masked area with these nodes are:
 
 GenAI is not just for the sake of GenAI, but to unblock creativity and empower humans. I am not only a developer; I use GenAI myself to do **more** things **better** than I could otherwise do.
 
-Do you like this node? Check, listen to, or follow my GenAI music project [**Windlereye** on Spotify](https://open.spotify.com/artist/6GdiI8ZKeWhSY73WWOhbep) to support me!
+Do you like this node? Check, listen to, or follow my GenAI music project [**Windlereye**](https://windlereye.com) to support me!
 
-[![Windlereye on Spotify](windlereye.jpg)](https://open.spotify.com/artist/6GdiI8ZKeWhSY73WWOhbep)
+[![Windlereye](windlereye.jpg)](https://windlereye.com)
 
 # Video Tutorial
 
