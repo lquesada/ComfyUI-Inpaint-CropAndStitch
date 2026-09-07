@@ -1,14 +1,32 @@
-import comfy.utils
-import comfy.model_management
 import math
-import nodes
+from abc import ABC, abstractmethod
 import numpy as np
 import torch
 import torch.nn.functional as TF
 import torchvision.transforms.functional as F
 from PIL import Image
 from scipy.ndimage import gaussian_filter, grey_dilation, binary_closing, binary_fill_holes
-from abc import ABC, abstractmethod
+
+try:
+    import comfy.utils
+    import comfy.model_management
+except ImportError:
+    class _MockComfyModelManagement:
+        @staticmethod
+        def get_torch_device():
+            return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    class _MockComfy:
+        model_management = _MockComfyModelManagement
+        utils = None
+    comfy = _MockComfy()
+
+try:
+    import nodes
+except ImportError:
+    class _MockNodes:
+        MAX_RESOLUTION = 16384
+    nodes = _MockNodes()
+
 
 class ProcessorLogic(ABC):
     @abstractmethod
@@ -90,19 +108,143 @@ class ProcessorLogic(ABC):
     def crop_magic_im(self, image, mask, x, y, w, h, target_w, target_h, padding, downscale_algorithm, upscale_algorithm, resize_output=True):
         pass
 
-    @abstractmethod
     def stitch_magic_im(self, canvas_image, inpainted_image, mask, ctc_x, ctc_y, ctc_w, ctc_h, cto_x, cto_y, cto_w, cto_h, downscale_algorithm, upscale_algorithm):
-        pass
+        canvas_image = canvas_image.clone()
+        inpainted_image = inpainted_image.clone()
+        mask = mask.clone()
+
+        # Ensure inpainted_image is 4D [B, H, W, C]
+        if inpainted_image.ndim == 3:
+            inpainted_image = inpainted_image.unsqueeze(0)
+        if mask.ndim == 2:
+            mask = mask.unsqueeze(0)
+
+        ctc_w = max(1, int(ctc_w))
+        ctc_h = max(1, int(ctc_h))
+        ctc_x = int(ctc_x)
+        ctc_y = int(ctc_y)
+
+        # Resize inpainted image and mask to match the context size
+        B, h, w, _ = inpainted_image.shape
+        if ctc_w > w or ctc_h > h:  # Upscaling
+            resized_image = self.rescale_i(inpainted_image, ctc_w, ctc_h, upscale_algorithm)
+            resized_mask = self.rescale_m(mask, ctc_w, ctc_h, upscale_algorithm)
+        else:  # Downscaling
+            resized_image = self.rescale_i(inpainted_image, ctc_w, ctc_h, downscale_algorithm)
+            resized_mask = self.rescale_m(mask, ctc_w, ctc_h, downscale_algorithm)
+
+        # Clamp mask to [0, 1] and expand to match image channels
+        resized_mask = resized_mask.clamp(0, 1).unsqueeze(-1)  # shape: [B, H, W, 1]
+
+        # Ensure canvas_crop is within canvas bounds
+        canvas_h, canvas_w = canvas_image.shape[1], canvas_image.shape[2]
+        crop_y1 = max(0, min(canvas_h, ctc_y))
+        crop_y2 = max(0, min(canvas_h, ctc_y + ctc_h))
+        crop_x1 = max(0, min(canvas_w, ctc_x))
+        crop_x2 = max(0, min(canvas_w, ctc_x + ctc_w))
+
+        if crop_y2 <= crop_y1 or crop_x2 <= crop_x1:
+            # Nothing to stitch / out of bounds
+            output_image = canvas_image[:, cto_y:cto_y + cto_h, cto_x:cto_x + cto_w]
+            return output_image
+
+        # Extract the canvas region we're about to overwrite
+        canvas_crop = canvas_image[:, crop_y1:crop_y2, crop_x1:crop_x2]
+
+        # If canvas_crop size does not match resized dimensions (e.g. edge clipping),
+        # slice the corresponding part of resized_image and resized_mask
+        actual_h = crop_y2 - crop_y1
+        actual_w = crop_x2 - crop_x1
+        if resized_image.shape[1] != actual_h or resized_image.shape[2] != actual_w:
+            offset_y = crop_y1 - ctc_y
+            offset_x = crop_x1 - ctc_x
+            resized_image = resized_image[:, offset_y:offset_y + actual_h, offset_x:offset_x + actual_w]
+            resized_mask = resized_mask[:, offset_y:offset_y + actual_h, offset_x:offset_x + actual_w]
+
+        # --- Channel reconciliation (defensive handling of RGB vs RGBA vs Grayscale) ---
+        c_canvas = canvas_crop.shape[-1]
+        c_inpaint = resized_image.shape[-1]
+
+        if c_canvas == 4 and c_inpaint == 3:
+            # Canvas has alpha (RGBA), inpaint is RGB. Preserve the canvas's alpha channel!
+            alpha = canvas_crop[:, :, :, 3:4].to(device=resized_image.device, dtype=resized_image.dtype)
+            resized_image = torch.cat([resized_image, alpha], dim=-1)
+        elif c_canvas == 3 and c_inpaint == 4:
+            # Canvas is RGB, inpaint has alpha (RGBA). Drop alpha channel to blend into RGB canvas.
+            resized_image = resized_image[:, :, :, :3]
+        elif c_canvas == 1 and c_inpaint == 3:
+            # Grayscale canvas, RGB inpaint: convert inpaint to grayscale
+            resized_image = (0.2989 * resized_image[:, :, :, 0:1] + 0.5870 * resized_image[:, :, :, 1:2] + 0.1140 * resized_image[:, :, :, 2:3])
+        elif c_canvas == 3 and c_inpaint == 1:
+            # RGB canvas, Grayscale inpaint: repeat to 3 channels
+            resized_image = resized_image.repeat(1, 1, 1, 3)
+        elif c_canvas == 4 and c_inpaint == 1:
+            # RGBA canvas, Grayscale inpaint: repeat to 3 channels and preserve canvas alpha
+            alpha = canvas_crop[:, :, :, 3:4].to(device=resized_image.device, dtype=resized_image.dtype)
+            resized_image = torch.cat([resized_image.repeat(1, 1, 1, 3), alpha], dim=-1)
+        elif c_canvas != c_inpaint:
+            # Fallback for unexpected channel counts
+            if c_inpaint > c_canvas:
+                resized_image = resized_image[:, :, :, :c_canvas]
+            else:
+                repeats = (c_canvas + c_inpaint - 1) // c_inpaint
+                resized_image = resized_image.repeat(1, 1, 1, repeats)[:, :, :, :c_canvas]
+
+        # Ensure device and dtype match
+        resized_image = resized_image.to(device=canvas_crop.device, dtype=canvas_crop.dtype)
+        resized_mask = resized_mask.to(device=canvas_crop.device, dtype=canvas_crop.dtype)
+
+        # Blend: new = mask * inpainted + (1 - mask) * canvas
+        blended = resized_mask * resized_image + (1.0 - resized_mask) * canvas_crop
+
+        # Paste the blended region back onto the canvas
+        canvas_image[:, crop_y1:crop_y2, crop_x1:crop_x2] = blended.to(dtype=canvas_image.dtype, device=canvas_image.device)
+
+        # Final crop to get back the original image area
+        out_y1 = max(0, min(canvas_h, int(cto_y)))
+        out_y2 = max(0, min(canvas_h, int(cto_y + cto_h)))
+        out_x1 = max(0, min(canvas_w, int(cto_x)))
+        out_x2 = max(0, min(canvas_w, int(cto_x + cto_w)))
+        output_image = canvas_image[:, out_y1:out_y2, out_x1:out_x2]
+
+        return output_image
+
+
+def _get_pil_resampling(algorithm: str):
+    if not isinstance(algorithm, str):
+        return Image.Resampling.BILINEAR
+    algo = algorithm.lower().strip()
+    mapping = {
+        "nearest": Image.Resampling.NEAREST,
+        "nearest-exact": Image.Resampling.NEAREST,
+        "bilinear": Image.Resampling.BILINEAR,
+        "bicubic": Image.Resampling.BICUBIC,
+        "lanczos": Image.Resampling.LANCZOS,
+        "box": Image.Resampling.BOX,
+        "area": Image.Resampling.BOX,
+        "hamming": Image.Resampling.HAMMING,
+    }
+    if algo in mapping:
+        return mapping[algo]
+    try:
+        return getattr(Image.Resampling, algorithm.upper())
+    except (AttributeError, ValueError):
+        try:
+            return getattr(Image, algorithm.upper())
+        except (AttributeError, ValueError):
+            return Image.Resampling.BILINEAR
 
 
 class CPUProcessorLogic(ProcessorLogic):
     def rescale_i(self, samples, width, height, algorithm: str):
         # samples shape: [B, H, W, C]
+        width = max(1, int(width))
+        height = max(1, int(height))
         samples = samples.movedim(-1, 1) # [B, C, H, W]
-        algorithm_enum = getattr(Image, algorithm.upper())  # i.e. Image.BICUBIC
+        algorithm_enum = _get_pil_resampling(algorithm)
         results = []
         for i in range(samples.shape[0]):
-            samples_pil: Image.Image = F.to_pil_image(samples[i].cpu()).resize((width, height), algorithm_enum)
+            samples_pil: Image.Image = F.to_pil_image(samples[i].float().cpu()).resize((width, height), algorithm_enum)
             results.append(F.to_tensor(samples_pil))
         samples = torch.stack(results, dim=0)
         samples = samples.movedim(1, -1)
@@ -110,26 +252,37 @@ class CPUProcessorLogic(ProcessorLogic):
 
     def rescale_m(self, samples, width, height, algorithm: str):
         # samples shape: [B, H, W]
-        algorithm_enum = getattr(Image, algorithm.upper())  # i.e. Image.BICUBIC
+        width = max(1, int(width))
+        height = max(1, int(height))
+        if samples.ndim == 2:
+            samples = samples.unsqueeze(0)
+        algorithm_enum = _get_pil_resampling(algorithm)
         results = []
         for i in range(samples.shape[0]):
-            samples_pil: Image.Image = F.to_pil_image(samples[i].cpu()).resize((width, height), algorithm_enum)
+            samples_pil: Image.Image = F.to_pil_image(samples[i].float().cpu()).resize((width, height), algorithm_enum)
             results.append(F.to_tensor(samples_pil).squeeze(0))
         samples = torch.stack(results, dim=0)
         return samples
 
     def fillholes_iterative_hipass_fill_m(self, samples):
+        is_2d = False
+        if samples.ndim == 2:
+            is_2d = True
+            samples = samples.unsqueeze(0)
         thresholds = [1, 0.99, 0.97, 0.95, 0.93, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
         results = []
         for i in range(samples.shape[0]):
-            mask_np = samples[i].cpu().numpy()
+            mask_np = samples[i].float().cpu().numpy()
             for threshold in thresholds:
                 thresholded_mask = mask_np >= threshold
                 closed_mask = binary_closing(thresholded_mask, structure=np.ones((3, 3)), border_value=1)
                 filled_mask = binary_fill_holes(closed_mask)
                 mask_np = np.maximum(mask_np, np.where(filled_mask != 0, threshold, 0))
             results.append(torch.from_numpy(mask_np.astype(np.float32)))
-        return torch.stack(results, dim=0)
+        res = torch.stack(results, dim=0).to(samples.device)
+        if is_2d:
+            res = res.squeeze(0)
+        return res
 
     def hipassfilter_m(self, samples, threshold):
         filtered_mask = samples.clone()
@@ -137,38 +290,66 @@ class CPUProcessorLogic(ProcessorLogic):
         return filtered_mask
 
     def expand_m(self, mask, pixels):
+        if pixels <= 0:
+            return mask
+        is_2d = False
+        if mask.ndim == 2:
+            is_2d = True
+            mask = mask.unsqueeze(0)
         sigma = pixels / 4
         kernel_size = math.ceil(sigma * 1.5 + 1)
         kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
         results = []
         for i in range(mask.shape[0]):
-            mask_np = mask[i].cpu().numpy()
+            mask_np = mask[i].float().cpu().numpy()
             dilated_mask = grey_dilation(mask_np, footprint=kernel, mode='reflect')
             results.append(torch.from_numpy(dilated_mask.astype(np.float32)).clamp(0.0, 1.0))
-        return torch.stack(results, dim=0)
+        res = torch.stack(results, dim=0).to(mask.device)
+        if is_2d:
+            res = res.squeeze(0)
+        return res
 
     def invert_m(self, samples):
+        if samples.dtype == torch.bool:
+            return (~samples).float()
         inverted_mask = samples.clone()
+        if not inverted_mask.is_floating_point():
+            inverted_mask = inverted_mask.float()
         inverted_mask = 1.0 - inverted_mask
         return inverted_mask
 
     def blur_m(self, samples, pixels):
         if pixels <= 0:
             return samples
+        is_2d = False
+        if samples.ndim == 2:
+            is_2d = True
+            samples = samples.unsqueeze(0)
         sigma = pixels / 4 
         results = []
         for i in range(samples.shape[0]):
-            mask_np = samples[i].cpu().numpy()
+            mask_np = samples[i].float().cpu().numpy()
             blurred_mask = gaussian_filter(mask_np, sigma=sigma, mode='reflect')
             results.append(torch.from_numpy(blurred_mask).float().clamp(0.0, 1.0))
-        return torch.stack(results, dim=0)
+        res = torch.stack(results, dim=0).to(samples.device)
+        if is_2d:
+            res = res.squeeze(0)
+        return res
 
     def debug_context_location_in_image(self, image, x, y, w, h):
         debug_image = image.clone()
-        debug_image[:, y:y+h, x:x+w, :] = 1.0 - debug_image[:, y:y+h, x:x+w, :]
+        B, img_h, img_w, C = image.shape
+        x1 = max(0, min(img_w, int(x)))
+        y1 = max(0, min(img_h, int(y)))
+        x2 = max(0, min(img_w, int(x + w)))
+        y2 = max(0, min(img_h, int(y + h)))
+        if x2 > x1 and y2 > y1:
+            debug_image[:, y1:y2, x1:x2, :] = 1.0 - debug_image[:, y1:y2, x1:x2, :]
         return debug_image
 
     def pad_to_multiple(self, value, multiple):
+        if multiple <= 0:
+            return int(value)
         return int(math.ceil(value / multiple) * multiple)
 
     def preresize_imm(self, image, mask, optional_context_mask, downscale_algorithm, upscale_algorithm, preresize_mode, preresize_min_width, preresize_min_height, preresize_max_width, preresize_max_height):
@@ -260,9 +441,12 @@ class CPUProcessorLogic(ProcessorLogic):
         assert new_H >= 0, f"Error: Trying to crop too much, height ({new_H}) must be >= 0"
         assert new_W >= 0, f"Error: Trying to crop too much, width ({new_W}) must be >= 0"
 
-        expanded_image = torch.zeros(B, new_H, new_W, C, device=image.device)
-        expanded_mask = torch.ones(B, new_H, new_W, device=mask.device)
-        expanded_optional_context_mask = torch.zeros(B, new_H, new_W, device=optional_context_mask.device)
+        if optional_context_mask is None:
+            optional_context_mask = torch.zeros(B, H, W, device=image.device, dtype=mask.dtype)
+
+        expanded_image = torch.zeros(B, new_H, new_W, C, device=image.device, dtype=image.dtype)
+        expanded_mask = torch.ones(B, new_H, new_W, device=mask.device, dtype=mask.dtype)
+        expanded_optional_context_mask = torch.zeros(B, new_H, new_W, device=optional_context_mask.device, dtype=optional_context_mask.dtype)
 
         up_padding = int(H * (extend_up_factor - 1.0))
         down_padding = new_H - H - up_padding
@@ -387,8 +571,13 @@ class CPUProcessorLogic(ProcessorLogic):
         mask = mask.clone()
         
         # Check for invalid inputs
-        if target_w <= 0 or target_h <= 0 or w == 0 or h == 0:
-            return image, 0, 0, image.shape[2], image.shape[1], image, mask, 0, 0, image.shape[2], image.shape[1]
+        if target_w <= 0 or target_h <= 0 or w <= 0 or h <= 0:
+            crop_im = image
+            crop_m = mask
+            if resize_output and target_w > 0 and target_h > 0:
+                crop_im = self.rescale_i(crop_im, target_w, target_h, downscale_algorithm)
+                crop_m = self.rescale_m(crop_m, target_w, target_h, downscale_algorithm)
+            return image, 0, 0, image.shape[2], image.shape[1], crop_im, crop_m, 0, 0, image.shape[2], image.shape[1]
 
         # Step 1: Pad target dimensions to be multiples of padding
         if padding != 0:
@@ -507,8 +696,8 @@ class CPUProcessorLogic(ProcessorLogic):
             expanded_image_h += down_padding
 
         # Step 5: Create the new image and mask
-        expanded_image = torch.zeros((image.shape[0], expanded_image_h, expanded_image_w, image.shape[3]), device=image.device)
-        expanded_mask = torch.ones((mask.shape[0], expanded_image_h, expanded_image_w), device=mask.device)
+        expanded_image = torch.zeros((image.shape[0], expanded_image_h, expanded_image_w, image.shape[3]), device=image.device, dtype=image.dtype)
+        expanded_mask = torch.ones((mask.shape[0], expanded_image_h, expanded_image_w), device=mask.device, dtype=mask.dtype)
 
         # Reorder the tensors to match the required dimension format for padding
         image = image.permute(0, 3, 1, 2)  # [B, H, W, C] -> [B, C, H, W]
@@ -566,47 +755,20 @@ class CPUProcessorLogic(ProcessorLogic):
 
         return canvas_image, cto_x, cto_y, cto_w, cto_h, cropped_image, cropped_mask, ctc_x, ctc_y, ctc_w, ctc_h
 
-    def stitch_magic_im(self, canvas_image, inpainted_image, mask, ctc_x, ctc_y, ctc_w, ctc_h, cto_x, cto_y, cto_w, cto_h, downscale_algorithm, upscale_algorithm):
-        canvas_image = canvas_image.clone()
-        inpainted_image = inpainted_image.clone()
-        mask = mask.clone()
-
-        # Resize inpainted image and mask to match the context size
-        B, h, w, _ = inpainted_image.shape
-        if ctc_w > w or ctc_h > h:  # Upscaling
-            resized_image = self.rescale_i(inpainted_image, ctc_w, ctc_h, upscale_algorithm)
-            resized_mask = self.rescale_m(mask, ctc_w, ctc_h, upscale_algorithm)
-        else:  # Downscaling
-            resized_image = self.rescale_i(inpainted_image, ctc_w, ctc_h, downscale_algorithm)
-            resized_mask = self.rescale_m(mask, ctc_w, ctc_h, downscale_algorithm)
-
-        # Clamp mask to [0, 1] and expand to match image channels
-        resized_mask = resized_mask.clamp(0, 1).unsqueeze(-1)  # shape: [B, H, W, 1]
-
-        # Extract the canvas region we're about to overwrite
-        canvas_crop = canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]
-
-        # Blend: new = mask * inpainted + (1 - mask) * canvas
-        blended = resized_mask * resized_image + (1.0 - resized_mask) * canvas_crop
-
-        # Paste the blended region back onto the canvas
-        canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w] = blended
-
-        # Final crop to get back the original image area
-        output_image = canvas_image[:, cto_y:cto_y + cto_h, cto_x:cto_x + cto_w]
-
-        return output_image
+    # stitch_magic_im is inherited from ProcessorLogic
 
 
 class GPUProcessorLogic(ProcessorLogic):
     def rescale_i(self, samples, width, height, algorithm: str):
         # samples shape: [B, H, W, C]
+        width = max(1, int(width))
+        height = max(1, int(height))
         mode = algorithm.lower()
         
         # CPU works better, fallback to CPU for rescaling
         original_device = samples.device
         samples = samples.movedim(-1, 1)  # [B, C, H, W]
-        algorithm_enum = getattr(Image, algorithm.upper())
+        algorithm_enum = _get_pil_resampling(algorithm)
         results = []
         for i in range(samples.shape[0]):
             samples_pil: Image.Image = F.to_pil_image(samples[i].float().cpu()).resize((width, height), algorithm_enum)
@@ -614,49 +776,45 @@ class GPUProcessorLogic(ProcessorLogic):
         samples = torch.stack(results, dim=0).to(original_device)
         samples = samples.movedim(1, -1)
         return samples
-        
-        #samples = samples.movedim(-1, 1)  # [B, C, H, W]
-        #samples = TF.interpolate(samples, size=(height, width), mode=mode, align_corners=False if mode not in ['nearest', 'area'] else None)
-        #samples = samples.movedim(1, -1)
-        #return samples
 
     def rescale_m(self, samples, width, height, algorithm: str):
         # samples shape: [B, H, W]
+        width = max(1, int(width))
+        height = max(1, int(height))
+        if samples.ndim == 2:
+            samples = samples.unsqueeze(0)
         mode = algorithm.lower()
         
         # CPU works better, fallback to CPU for rescaling
         original_device = samples.device
-        algorithm_enum = getattr(Image, algorithm.upper())
+        algorithm_enum = _get_pil_resampling(algorithm)
         results = []
         for i in range(samples.shape[0]):
             samples_pil: Image.Image = F.to_pil_image(samples[i].float().cpu()).resize((width, height), algorithm_enum)
             results.append(F.to_tensor(samples_pil).squeeze(0))
         samples = torch.stack(results, dim=0).to(original_device)
         return samples
-        
-        #samples = samples.unsqueeze(1)  # [B, H, W] -> [B, 1, H, W]
-        #samples = TF.interpolate(samples, size=(height, width), mode=mode, align_corners=False if mode not in ['nearest', 'area'] else None)
-        #samples = samples.squeeze(1)
-        #return samples
 
     def fillholes_iterative_hipass_fill_m(self, samples):
-        # We want this to always run in CPU for simplicity of implementation.
-        # Just convert whatever inputs from GPU to CPU at the beginning of the function,
-        # then convert them back to GPU at the end of the function.
-        # The implementation is verbatim from CPUProcessorLogic.
-
+        is_2d = False
+        if samples.ndim == 2:
+            is_2d = True
+            samples = samples.unsqueeze(0)
         thresholds = [1, 0.99, 0.97, 0.95, 0.93, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
         results = []
         original_device = samples.device
         for i in range(samples.shape[0]):
-            mask_np = samples[i].cpu().numpy()
+            mask_np = samples[i].float().cpu().numpy()
             for threshold in thresholds:
                 thresholded_mask = mask_np >= threshold
                 closed_mask = binary_closing(thresholded_mask, structure=np.ones((3, 3)), border_value=1)
                 filled_mask = binary_fill_holes(closed_mask)
                 mask_np = np.maximum(mask_np, np.where(filled_mask != 0, threshold, 0))
             results.append(torch.from_numpy(mask_np.astype(np.float32)))
-        return torch.stack(results, dim=0).to(original_device)
+        res = torch.stack(results, dim=0).to(original_device)
+        if is_2d:
+            res = res.squeeze(0)
+        return res
 
     def hipassfilter_m(self, samples, threshold):
         filtered_mask = samples.clone()
@@ -664,6 +822,15 @@ class GPUProcessorLogic(ProcessorLogic):
         return filtered_mask
 
     def expand_m(self, mask, pixels):
+        if pixels <= 0:
+            return mask
+        is_2d = False
+        if mask.ndim == 2:
+            is_2d = True
+            mask = mask.unsqueeze(0)
+        orig_dtype = mask.dtype
+        if not mask.is_floating_point():
+            mask = mask.float()
         # Dilation can be approximated with max pooling
         sigma = pixels / 4
         kernel_size = math.ceil(sigma * 1.5 + 1)
@@ -675,22 +842,40 @@ class GPUProcessorLogic(ProcessorLogic):
         # mask is [B, H, W] -> [B, 1, H, W]
         mask_in = mask.unsqueeze(1)
         
-        # Reflect padding to avoid border transparency
-        mask_padded = TF.pad(mask_in, (padding, padding, padding, padding), mode='reflect')
+        # Reflect padding to avoid border transparency (fallback to replicate if padding >= dimension)
+        pad_mode = 'reflect' if (padding < mask.shape[1] and padding < mask.shape[2]) else 'replicate'
+        mask_padded = TF.pad(mask_in, (padding, padding, padding, padding), mode=pad_mode)
         
         # MaxPool2d is equivalent to dilation with a square kernel of 1s
         dilated = TF.max_pool2d(mask_padded, kernel_size=kernel_size, stride=1, padding=0)
         
-        return dilated.squeeze(1)
+        res = dilated.squeeze(1)
+        if orig_dtype == torch.bool:
+            res = res > 0.5
+        elif not orig_dtype.is_floating_point:
+            res = res.to(orig_dtype)
+        if is_2d:
+            res = res.squeeze(0)
+        return res
 
     def invert_m(self, samples):
+        if samples.dtype == torch.bool:
+            return (~samples).float()
         inverted_mask = samples.clone()
+        if not inverted_mask.is_floating_point():
+            inverted_mask = inverted_mask.float()
         inverted_mask = 1.0 - inverted_mask
         return inverted_mask
 
     def blur_m(self, samples, pixels):
         if pixels <= 0:
             return samples
+        is_2d = False
+        if samples.ndim == 2:
+            is_2d = True
+            samples = samples.unsqueeze(0)
+        if not samples.is_floating_point():
+            samples = samples.float()
         sigma = pixels / 4
         # Gaussian blur implementation on GPU (Separable 2-pass 1D convolution for memory optimization)
         kernel_size = 2 * int(4.0 * sigma + 0.5) + 1
@@ -707,20 +892,33 @@ class GPUProcessorLogic(ProcessorLogic):
         pad = kernel_size // 2
         
         # Reflect padding and separable 1D convolutions (horizontal then vertical)
-        padded_h = TF.pad(mask_in, (pad, pad, 0, 0), mode='reflect')
+        pad_mode_h = 'reflect' if pad < samples.shape[2] else 'replicate'
+        padded_h = TF.pad(mask_in, (pad, pad, 0, 0), mode=pad_mode_h)
         blurred_h = TF.conv2d(padded_h, kernel_h, padding=0)
         
-        padded_v = TF.pad(blurred_h, (0, 0, pad, pad), mode='reflect')
+        pad_mode_v = 'reflect' if pad < samples.shape[1] else 'replicate'
+        padded_v = TF.pad(blurred_h, (0, 0, pad, pad), mode=pad_mode_v)
         blurred = TF.conv2d(padded_v, kernel_v, padding=0)
         
-        return blurred.squeeze(1).clamp(0.0, 1.0)
+        res = blurred.squeeze(1).clamp(0.0, 1.0)
+        if is_2d:
+            res = res.squeeze(0)
+        return res
 
     def debug_context_location_in_image(self, image, x, y, w, h):
         debug_image = image.clone()
-        debug_image[:, y:y+h, x:x+w, :] = 1.0 - debug_image[:, y:y+h, x:x+w, :]
+        B, img_h, img_w, C = image.shape
+        x1 = max(0, min(img_w, int(x)))
+        y1 = max(0, min(img_h, int(y)))
+        x2 = max(0, min(img_w, int(x + w)))
+        y2 = max(0, min(img_h, int(y + h)))
+        if x2 > x1 and y2 > y1:
+            debug_image[:, y1:y2, x1:x2, :] = 1.0 - debug_image[:, y1:y2, x1:x2, :]
         return debug_image
 
     def pad_to_multiple(self, value, multiple):
+        if multiple <= 0:
+            return int(value)
         return int(math.ceil(value / multiple) * multiple)
 
     def preresize_imm(self, image, mask, optional_context_mask, downscale_algorithm, upscale_algorithm, preresize_mode, preresize_min_width, preresize_min_height, preresize_max_width, preresize_max_height):
@@ -812,9 +1010,12 @@ class GPUProcessorLogic(ProcessorLogic):
         assert new_H >= 0, f"Error: Trying to crop too much, height ({new_H}) must be >= 0"
         assert new_W >= 0, f"Error: Trying to crop too much, width ({new_W}) must be >= 0"
 
-        expanded_image = torch.zeros(B, new_H, new_W, C, device=image.device)
-        expanded_mask = torch.ones(B, new_H, new_W, device=mask.device)
-        expanded_optional_context_mask = torch.zeros(B, new_H, new_W, device=optional_context_mask.device)
+        if optional_context_mask is None:
+            optional_context_mask = torch.zeros(B, H, W, device=image.device, dtype=mask.dtype)
+
+        expanded_image = torch.zeros(B, new_H, new_W, C, device=image.device, dtype=image.dtype)
+        expanded_mask = torch.ones(B, new_H, new_W, device=mask.device, dtype=mask.dtype)
+        expanded_optional_context_mask = torch.zeros(B, new_H, new_W, device=optional_context_mask.device, dtype=optional_context_mask.dtype)
 
         up_padding = int(H * (extend_up_factor - 1.0))
         down_padding = new_H - H - up_padding
@@ -943,8 +1144,13 @@ class GPUProcessorLogic(ProcessorLogic):
         mask = mask.clone()
         
         # Check for invalid inputs
-        if target_w <= 0 or target_h <= 0 or w == 0 or h == 0:
-            return image, 0, 0, image.shape[2], image.shape[1], image, mask, 0, 0, image.shape[2], image.shape[1]
+        if target_w <= 0 or target_h <= 0 or w <= 0 or h <= 0:
+            crop_im = image
+            crop_m = mask
+            if resize_output and target_w > 0 and target_h > 0:
+                crop_im = self.rescale_i(crop_im, target_w, target_h, downscale_algorithm)
+                crop_m = self.rescale_m(crop_m, target_w, target_h, downscale_algorithm)
+            return image, 0, 0, image.shape[2], image.shape[1], crop_im, crop_m, 0, 0, image.shape[2], image.shape[1]
 
         # Step 1: Pad target dimensions to be multiples of padding
         if padding != 0:
@@ -1063,8 +1269,8 @@ class GPUProcessorLogic(ProcessorLogic):
             expanded_image_h += down_padding
 
         # Step 5: Create the new image and mask
-        expanded_image = torch.zeros((image.shape[0], expanded_image_h, expanded_image_w, image.shape[3]), device=image.device)
-        expanded_mask = torch.ones((mask.shape[0], expanded_image_h, expanded_image_w), device=mask.device)
+        expanded_image = torch.zeros((image.shape[0], expanded_image_h, expanded_image_w, image.shape[3]), device=image.device, dtype=image.dtype)
+        expanded_mask = torch.ones((mask.shape[0], expanded_image_h, expanded_image_w), device=mask.device, dtype=mask.dtype)
 
         # Reorder the tensors to match the required dimension format for padding
         image = image.permute(0, 3, 1, 2)  # [B, H, W, C] -> [B, C, H, W]
@@ -1122,36 +1328,7 @@ class GPUProcessorLogic(ProcessorLogic):
 
         return canvas_image, cto_x, cto_y, cto_w, cto_h, cropped_image, cropped_mask, ctc_x, ctc_y, ctc_w, ctc_h
 
-    def stitch_magic_im(self, canvas_image, inpainted_image, mask, ctc_x, ctc_y, ctc_w, ctc_h, cto_x, cto_y, cto_w, cto_h, downscale_algorithm, upscale_algorithm):
-        canvas_image = canvas_image.clone()
-        inpainted_image = inpainted_image.clone()
-        mask = mask.clone()
-
-        # Resize inpainted image and mask to match the context size
-        B, h, w, _ = inpainted_image.shape
-        if ctc_w > w or ctc_h > h:  # Upscaling
-            resized_image = self.rescale_i(inpainted_image, ctc_w, ctc_h, upscale_algorithm)
-            resized_mask = self.rescale_m(mask, ctc_w, ctc_h, upscale_algorithm)
-        else:  # Downscaling
-            resized_image = self.rescale_i(inpainted_image, ctc_w, ctc_h, downscale_algorithm)
-            resized_mask = self.rescale_m(mask, ctc_w, ctc_h, downscale_algorithm)
-
-        # Clamp mask to [0, 1] and expand to match image channels
-        resized_mask = resized_mask.clamp(0, 1).unsqueeze(-1)  # shape: [B, H, W, 1]
-
-        # Extract the canvas region we're about to overwrite
-        canvas_crop = canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]
-
-        # Blend: new = mask * inpainted + (1 - mask) * canvas
-        blended = resized_mask * resized_image + (1.0 - resized_mask) * canvas_crop
-
-        # Paste the blended region back onto the canvas
-        canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w] = blended
-
-        # Final crop to get back the original image area
-        output_image = canvas_image[:, cto_y:cto_y + cto_h, cto_x:cto_x + cto_w]
-
-        return output_image
+    # stitch_magic_im is inherited from ProcessorLogic
 
 class InpaintCropImproved:
     @classmethod
@@ -1210,16 +1387,10 @@ class InpaintCropImproved:
     CATEGORY = "inpaint"
     DESCRIPTION = "Crops an image around a mask for inpainting, the optional context mask defines an extra area to keep for the context."
 
-    # Remove the following # to turn on debug mode (extra outputs, print statements)
-    #'''
-    DEBUG_MODE = False
-    RETURN_TYPES = ("STITCHER", "IMAGE", "MASK")
-    RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
+    VERBOSE = True
 
-    '''
-    
-    DEBUG_MODE = True
-    RETURN_TYPES = ("STITCHER", "IMAGE", "MASK",
+    DEBUG_RETURN_TYPES = (
+        "STITCHER", "IMAGE", "MASK",
         # DEBUG
         "IMAGE",
         "MASK",
@@ -1245,7 +1416,8 @@ class InpaintCropImproved:
         "IMAGE",
         "MASK",
     )
-    RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask",
+    DEBUG_RETURN_NAMES = (
+        "stitcher", "cropped_image", "cropped_mask",
         # DEBUG
         "DEBUG_preresize_image",
         "DEBUG_preresize_mask",
@@ -1271,18 +1443,70 @@ class InpaintCropImproved:
         "DEBUG_cropped_in_canvas_location",
         "DEBUG_cropped_mask_blend",
     )
+
+    # Remove the following # to turn on debug mode (extra outputs, print statements)
+    #'''
+    DEBUG_MODE = False
+    RETURN_TYPES = ("STITCHER", "IMAGE", "MASK")
+    RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
+
+    '''
+    
+    DEBUG_MODE = True
+    RETURN_TYPES = DEBUG_RETURN_TYPES
+    RETURN_NAMES = DEBUG_RETURN_NAMES
     #'''
  
     def inpaint_crop(self, image, downscale_algorithm, upscale_algorithm, preresize, preresize_mode, preresize_min_width, preresize_min_height, preresize_max_width, preresize_max_height, extend_for_outpainting, extend_up_factor, extend_down_factor, extend_left_factor, extend_right_factor, mask_hipass_filter, mask_fill_holes, mask_expand_pixels, mask_invert, mask_blend_pixels, context_from_mask_extend_factor, output_resize_to_target_size, output_target_width, output_target_height, output_padding, device_mode, mask=None, optional_context_mask=None):
         image = image.clone()
+        if not image.is_floating_point():
+            image = image.float() / 255.0 if (image.numel() > 0 and image.max() > 1.0) else image.float()
+        if image.ndim == 3:
+            image = image.unsqueeze(0)  # (H, W, C) -> (1, H, W, C)
+
+        # Defensive layer handling for input image channels (1->RGB, 2->RGBA)
+        if image.shape[-1] == 1:
+            image = image.repeat(1, 1, 1, 3)
+        elif image.shape[-1] == 2:
+            image = torch.cat([image[..., 0:1].repeat(1, 1, 1, 3), image[..., 1:2]], dim=-1)
+
+        if mask is not None and mask.numel() == 0:
+            mask = None
+
         if mask is not None:
             mask = mask.clone()
+            if not mask.is_floating_point():
+                mask = mask.float()
             if mask.ndim == 2:
                 mask = mask.unsqueeze(0)  # (H, W) -> (1, H, W)
+            elif mask.ndim == 4:
+                if mask.shape[1] == 1:
+                    mask = mask.squeeze(1)
+                elif mask.shape[-1] == 1:
+                    mask = mask.squeeze(-1)
+            # Defensive range normalization (e.g. 0-255 masks)
+            if mask.numel() > 0 and mask.max() > 1.0:
+                mask = mask / 255.0
+            mask = mask.clamp(0.0, 1.0)
+
+        if optional_context_mask is not None and optional_context_mask.numel() == 0:
+            optional_context_mask = None
+
         if optional_context_mask is not None:
             optional_context_mask = optional_context_mask.clone()
+            if not optional_context_mask.is_floating_point():
+                optional_context_mask = optional_context_mask.float()
             if optional_context_mask.ndim == 2:
                 optional_context_mask = optional_context_mask.unsqueeze(0)  # (H, W) -> (1, H, W)
+            elif optional_context_mask.ndim == 4:
+                if optional_context_mask.shape[1] == 1:
+                    optional_context_mask = optional_context_mask.squeeze(1)
+                elif optional_context_mask.shape[-1] == 1:
+                    optional_context_mask = optional_context_mask.squeeze(-1)
+            # Defensive range normalization
+            if optional_context_mask.numel() > 0 and optional_context_mask.max() > 1.0:
+                optional_context_mask = optional_context_mask / 255.0
+            optional_context_mask = optional_context_mask.clamp(0.0, 1.0)
 
         if device_mode == "gpu (much faster)":
             device = comfy.model_management.get_torch_device()
@@ -1293,14 +1517,18 @@ class InpaintCropImproved:
         else:
             processor = CPUProcessorLogic()
 
-        output_padding = int(output_padding)
-        
-        # Check that some parameters make sense
-        if preresize and preresize_mode == "ensure minimum and maximum resolution":
-            assert preresize_max_width >= preresize_min_width, "Preresize maximum width must be greater than or equal to minimum width"
-            assert preresize_max_height >= preresize_min_height, "Preresize maximum height must be greater than or equal to minimum height"
+        output_padding = max(0, int(output_padding))
+        output_target_width = max(1, int(output_target_width))
+        output_target_height = max(1, int(output_target_height))
 
-        if self.DEBUG_MODE:
+        # Check that resolution parameters make sense (swap if min > max)
+        if preresize and preresize_mode == "ensure minimum and maximum resolution":
+            if preresize_min_width > preresize_max_width:
+                preresize_min_width, preresize_max_width = preresize_max_width, preresize_min_width
+            if preresize_min_height > preresize_max_height:
+                preresize_min_height, preresize_max_height = preresize_max_height, preresize_min_height
+
+        if self.DEBUG_MODE and getattr(self, "VERBOSE", True):
             print('Inpaint Crop Batch input')
             print(image.shape, type(image), image.dtype)
             if mask is not None:
@@ -1308,8 +1536,13 @@ class InpaintCropImproved:
             if optional_context_mask is not None:
                 print(optional_context_mask.shape, type(optional_context_mask), optional_context_mask.dtype)
 
-        if image.shape[0] > 1:
-            assert output_resize_to_target_size, "output_resize_to_target_size must be enabled when input is a batch of images, given all images in the batch output have to be the same size"
+        # Batch inputs require uniform output target sizes
+        if image.shape[0] > 1 and not output_resize_to_target_size:
+            output_resize_to_target_size = True
+            if output_target_width <= 1:
+                output_target_width = image.shape[2]
+            if output_target_height <= 1:
+                output_target_height = image.shape[1]
 
         # When a LoadImage node passes a mask without user editing, it may be the wrong shape.
         # Detect and fix that to avoid shape mismatch errors.
@@ -1317,11 +1550,15 @@ class InpaintCropImproved:
             if mask.shape[1] != image.shape[1] or mask.shape[2] != image.shape[2]:
                 if torch.count_nonzero(mask) == 0:
                     mask = torch.zeros((mask.shape[0], image.shape[1], image.shape[2]), device=image.device, dtype=image.dtype)
+                else:
+                    mask = processor.rescale_m(mask, image.shape[2], image.shape[1], "bilinear")
 
         if optional_context_mask is not None and (image.shape[0] == 1 or optional_context_mask.shape[0] == 1 or optional_context_mask.shape[0] == image.shape[0]):
             if optional_context_mask.shape[1] != image.shape[1] or optional_context_mask.shape[2] != image.shape[2]:
                 if torch.count_nonzero(optional_context_mask) == 0:
                     optional_context_mask = torch.zeros((optional_context_mask.shape[0], image.shape[1], image.shape[2]), device=image.device, dtype=image.dtype)
+                else:
+                    optional_context_mask = processor.rescale_m(optional_context_mask, image.shape[2], image.shape[1], "bilinear")
 
         # If no mask is provided, create one with the shape of the image
         if mask is None:
@@ -1346,7 +1583,7 @@ class InpaintCropImproved:
             assert optional_context_mask.dim() == 3, f"Expected 3D BHW optional_context_mask tensor, got {optional_context_mask.shape}"
             optional_context_mask = optional_context_mask.expand(image.shape[0], -1, -1).clone()
 
-        if self.DEBUG_MODE:
+        if self.DEBUG_MODE and getattr(self, "VERBOSE", True):
             print('Inpaint Crop Batch ready')
             print(image.shape, type(image), image.dtype)
             print(mask.shape, type(mask), mask.dtype)
@@ -1539,7 +1776,8 @@ class InpaintCropImproved:
         if self.DEBUG_MODE:
             # Everything is already on CPU, stack will be memory-safe
             final_debug_outputs = []
-            for name in self.RETURN_NAMES:
+            return_names = getattr(self, "DEBUG_RETURN_NAMES", self.RETURN_NAMES) if len(self.RETURN_NAMES) <= 3 else self.RETURN_NAMES
+            for name in return_names:
                 if name.startswith("DEBUG_"):
                     values = debug_outputs[name]
                     if not values:
@@ -1592,7 +1830,19 @@ class InpaintStitchImproved:
 
     def inpaint_stitch(self, stitcher, inpainted_image):
         inpainted_image = inpainted_image.clone()
+        if not inpainted_image.is_floating_point():
+            inpainted_image = inpainted_image.float() / 255.0 if (inpainted_image.numel() > 0 and inpainted_image.max() > 1.0) else inpainted_image.float()
+        if inpainted_image.ndim == 3:
+            if inpainted_image.shape[-1] in [1, 3, 4]:
+                inpainted_image = inpainted_image.unsqueeze(0)
+            else:
+                inpainted_image = inpainted_image.unsqueeze(-1)
         results = []
+
+        required_keys = ['cropped_to_canvas_x', 'cropped_to_canvas_y', 'cropped_to_canvas_w', 'cropped_to_canvas_h', 'canvas_image', 'cropped_mask_for_blend', 'canvas_to_orig_x', 'canvas_to_orig_y', 'canvas_to_orig_w', 'canvas_to_orig_h']
+        for k in required_keys:
+            if k not in stitcher:
+                raise ValueError(f"InpaintStitchImproved: Provided stitcher is missing required key '{k}'. Ensure it was generated by InpaintCropImproved.")
         
         device_mode = stitcher.get('device_mode', 'cpu (compatible)')
 
@@ -1610,10 +1860,7 @@ class InpaintStitchImproved:
                 stitcher[key] = [t.to(device) if torch.is_tensor(t) else t for t in stitcher[key]]
 
         batch_size = inpainted_image.shape[0]
-        assert len(stitcher['cropped_to_canvas_x']) == batch_size or len(stitcher['cropped_to_canvas_x']) == 1, "Stitch batch size doesn't match image batch size"
-        override = False
-        if len(stitcher['cropped_to_canvas_x']) != batch_size and len(stitcher['cropped_to_canvas_x']) == 1:
-            override = True
+        stitcher_len = max(1, len(stitcher['cropped_to_canvas_x']))
         
         for i in range(batch_size):
             one_image = inpainted_image[i:i+1]
@@ -1622,10 +1869,8 @@ class InpaintStitchImproved:
             for key in ['downscale_algorithm', 'upscale_algorithm', 'blend_pixels']:
                 one_stitcher[key] = stitcher[key]
             for key in ['canvas_to_orig_x', 'canvas_to_orig_y', 'canvas_to_orig_w', 'canvas_to_orig_h', 'canvas_image', 'cropped_to_canvas_x', 'cropped_to_canvas_y', 'cropped_to_canvas_w', 'cropped_to_canvas_h', 'cropped_mask_for_blend']:
-                if override: 
-                    one_stitcher[key] = stitcher[key][0]
-                else:
-                    one_stitcher[key] = stitcher[key][i]
+                idx = 0 if stitcher_len == 1 else (i % stitcher_len)
+                one_stitcher[key] = stitcher[key][idx]
 
             one_image, = self.inpaint_stitch_single_image(one_stitcher, one_image, processor)
             results.append(one_image.squeeze(0))
