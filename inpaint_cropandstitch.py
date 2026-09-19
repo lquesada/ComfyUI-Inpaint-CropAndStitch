@@ -1354,7 +1354,7 @@ class InpaintCropImproved:
                 "mask_fill_holes": ("BOOLEAN", {"default": True, "tooltip": "Mark as masked any areas fully enclosed by mask."}),
                 "mask_expand_pixels": ("INT", {"default": 0, "min": 0, "max": nodes.MAX_RESOLUTION, "step": 1, "tooltip": "Expand the mask by a certain amount of pixels before processing."}),
                 "mask_invert": ("BOOLEAN", {"default": False,"tooltip": "Invert mask so that anything masked will be kept."}),
-                "mask_blend_pixels": ("INT", {"default": 32, "min": 0, "max": 64, "step": 1, "tooltip": "How many pixels to blend into the original image."}),
+                "mask_blend_pixels": ("INT", {"default": 32, "min": 0, "max": 256, "step": 1, "tooltip": "How many pixels to blend into the original image."}),
                 "mask_hipass_filter": ("FLOAT", {"default": 0.1, "min": 0, "max": 1, "step": 0.01, "tooltip": "Ignore mask values lower than this value."}),
 
                 # Extend image for outpainting
@@ -1617,7 +1617,7 @@ class InpaintCropImproved:
         }
         result_image = []
         result_mask = []
-        debug_outputs = {name: [] for name in self.RETURN_NAMES if name.startswith("DEBUG_")}
+        debug_outputs = {name: [] for name in self.DEBUG_RETURN_NAMES if name.startswith("DEBUG_")}
 
         batch_size = image.shape[0]
 
@@ -1632,6 +1632,11 @@ class InpaintCropImproved:
             
             sub_DEBUG_preresize_image = sub_image.clone() if self.DEBUG_MODE else None
             sub_DEBUG_preresize_mask = sub_mask.clone() if self.DEBUG_MODE else None
+
+            if mask_hipass_filter >= 0.01:
+                sub_mask = processor.hipassfilter_m(sub_mask, mask_hipass_filter)
+                sub_opt_mask = processor.hipassfilter_m(sub_opt_mask, mask_hipass_filter)
+            sub_DEBUG_hipassfilter_mask = sub_mask.clone() if self.DEBUG_MODE else None
 
             if mask_fill_holes:
                 sub_mask = processor.fillholes_iterative_hipass_fill_m(sub_mask)
@@ -1649,11 +1654,6 @@ class InpaintCropImproved:
                 sub_mask = processor.expand_m(sub_mask, mask_blend_pixels)
                 sub_mask = processor.blur_m(sub_mask, mask_blend_pixels*0.5)
             sub_DEBUG_blur_mask = sub_mask.clone() if self.DEBUG_MODE else None
-
-            if mask_hipass_filter >= 0.01:
-                sub_mask = processor.hipassfilter_m(sub_mask, mask_hipass_filter)
-                sub_opt_mask = processor.hipassfilter_m(sub_opt_mask, mask_hipass_filter)
-            sub_DEBUG_hipassfilter_mask = sub_mask.clone() if self.DEBUG_MODE else None
 
             if extend_for_outpainting:
                 sub_image, sub_mask, sub_opt_mask = processor.extend_imm(sub_image, sub_mask, sub_opt_mask, extend_up_factor, extend_down_factor, extend_left_factor, extend_right_factor)

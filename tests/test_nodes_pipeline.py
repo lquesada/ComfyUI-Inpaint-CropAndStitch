@@ -361,6 +361,82 @@ class TestNodesPipeline(unittest.TestCase):
         self.assertIsNotNone(stitcher)
         self.assertEqual(crop_im.shape[-1], 3)
 
+    def test_mask_blend_pixels_high_limit(self):
+        # Verify metadata max is 256
+        inputs = InpaintCropImproved.INPUT_TYPES()
+        blend_config = inputs["required"]["mask_blend_pixels"][1]
+        self.assertEqual(blend_config["max"], 256)
+
+        # Test execution with high blend values on both CPU and GPU modes
+        orig_img = torch.rand(1, 100, 100, 3, dtype=torch.float32)
+        mask = torch.zeros(1, 100, 100, dtype=torch.float32)
+        mask[0, 40:60, 40:60] = 1.0
+
+        for blend_px in [128, 256]:
+            for device_mode in ["cpu (compatible)", "gpu (much faster)"]:
+                with self.subTest(blend_px=blend_px, device_mode=device_mode):
+                    args = self._default_crop_args(
+                        orig_img,
+                        mask=mask,
+                        mask_blend_pixels=blend_px,
+                        context_from_mask_extend_factor=1.5,
+                        device_mode=device_mode
+                    )
+                    crop_results = self.crop_node.inpaint_crop(**args)
+                    stitcher, cropped_image, cropped_mask = crop_results[:3]
+
+                    self.assertEqual(cropped_image.ndim, 4)
+                    self.assertEqual(cropped_mask.ndim, 3)
+
+                    # Verify stitch
+                    inpainted_crop = cropped_image.clone() * 0.5
+                    stitch_results = self.stitch_node.inpaint_stitch(stitcher, inpainted_crop)
+                    output_image = stitch_results[0]
+                    self.assertEqual(output_image.shape, orig_img.shape)
+
+    def test_hipass_filter_before_blur_smooth_gradient(self):
+        # Create image and mask with intentional stray noise (< 0.1) far from center
+        orig_img = torch.rand(1, 80, 80, 3, dtype=torch.float32)
+        mask = torch.zeros(1, 80, 80, dtype=torch.float32)
+        mask[0, 35:45, 35:45] = 1.0  # Main mask
+        mask[0, 5, 5] = 0.05          # Stray noise below 0.1 threshold
+
+        # Enable DEBUG_MODE to inspect intermediate masks
+        self.crop_node.DEBUG_MODE = True
+        try:
+            for device_mode in ["cpu (compatible)", "gpu (much faster)"]:
+                with self.subTest(device_mode=device_mode):
+                    args = self._default_crop_args(
+                        orig_img,
+                        mask=mask,
+                        mask_hipass_filter=0.1,
+                        mask_blend_pixels=16,
+                        device_mode=device_mode
+                    )
+                    res = self.crop_node.inpaint_crop(**args)
+                    stitcher, crop_im, crop_m = res[:3]
+                    debug_outputs = res[3:]
+
+                    # Verify that stray noise was filtered out
+                    # The stray noise at (5, 5) should be 0 in DEBUG_hipassfilter_mask
+                    debug_names = self.crop_node.DEBUG_RETURN_NAMES[3:]
+                    hipass_idx = debug_names.index("DEBUG_hipassfilter_mask")
+                    hipass_mask = debug_outputs[hipass_idx]
+                    self.assertEqual(hipass_mask[0, 5, 5].item(), 0.0)
+
+                    # Verify that the blend mask contains a smooth Gaussian decay
+                    # including values in the (0.0, 0.1) range (proving it was not truncated)
+                    blend_mask = stitcher["cropped_mask_for_blend"][0]
+                    tail_values = blend_mask[(blend_mask > 0.0) & (blend_mask < 0.1)]
+                    self.assertGreater(
+                        tail_values.numel(),
+                        0,
+                        "Blend mask should contain smooth Gaussian tail values in (0.0, 0.1) range"
+                    )
+        finally:
+            self.crop_node.DEBUG_MODE = False
+
 
 if __name__ == '__main__':
     unittest.main()
+
