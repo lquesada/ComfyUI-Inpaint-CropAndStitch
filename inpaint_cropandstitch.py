@@ -28,6 +28,116 @@ except ImportError:
     nodes = _MockNodes()
 
 
+def _sanitize_image_tensor(image: torch.Tensor, allow_grayscale: bool = False) -> torch.Tensor:
+    if not torch.is_tensor(image):
+        raise TypeError(f"Expected torch.Tensor for image, got {type(image).__name__}")
+    image = image.clone()
+    if not image.is_floating_point():
+        image = image.float() / 255.0 if (image.numel() > 0 and image.max() > 1.0) else image.float()
+    image = torch.nan_to_num(image, nan=0.0, posinf=1.0, neginf=0.0)
+
+    # Flatten extra leading/middle singleton dimensions (e.g. 5D [B, 1, H, W, C] -> 4D)
+    while image.ndim > 4 and 1 in image.shape[:2]:
+        if image.shape[1] == 1:
+            image = image.squeeze(1)
+        elif image.shape[0] == 1:
+            image = image.squeeze(0)
+        else:
+            break
+    if image.ndim > 4:
+        image = image.reshape(-1, image.shape[-3], image.shape[-2], image.shape[-1])
+
+    # 2D -> 4D [H, W] -> [1, H, W, 1]
+    if image.ndim == 2:
+        image = image.unsqueeze(0).unsqueeze(-1)
+
+    # 3D -> 4D
+    if image.ndim == 3:
+        if image.shape[-1] in [1, 2, 3, 4]:
+            # [H, W, C] unbatched
+            image = image.unsqueeze(0)
+        elif image.shape[0] in [1, 2, 3, 4] and image.shape[-1] > 4:
+            # [C, H, W] channels-first unbatched
+            image = image.permute(1, 2, 0).unsqueeze(0)
+        else:
+            # [B, H, W] grayscale batch without channel dim
+            image = image.unsqueeze(-1)
+
+    # 4D channels-first [B, C, H, W] -> channels-last [B, H, W, C]
+    if image.ndim == 4:
+        if image.shape[1] in [1, 2, 3, 4] and image.shape[-1] > 4:
+            image = image.permute(0, 2, 3, 1)
+
+    # Defensive channel harmonization
+    if image.shape[-1] == 1 and not allow_grayscale:
+        image = image.repeat(1, 1, 1, 3)
+    elif image.shape[-1] == 2:
+        image = torch.cat([image[..., 0:1].repeat(1, 1, 1, 3), image[..., 1:2]], dim=-1)
+    elif image.shape[-1] > 4:
+        image = image[..., :4]
+
+    return image
+
+
+def _sanitize_mask_tensor(mask: torch.Tensor) -> torch.Tensor:
+    if mask is None:
+        return None
+    if not torch.is_tensor(mask):
+        raise TypeError(f"Expected torch.Tensor for mask, got {type(mask).__name__}")
+    if mask.numel() == 0:
+        return None
+    mask = mask.clone()
+    if not mask.is_floating_point():
+        mask = mask.float()
+    mask = torch.nan_to_num(mask, nan=0.0, posinf=1.0, neginf=0.0)
+
+    # Remove extra singleton dimensions (e.g. 5D -> 3D/4D)
+    while mask.ndim > 3 and 1 in mask.shape:
+        if mask.shape[1] == 1:
+            mask = mask.squeeze(1)
+        elif mask.shape[-1] == 1:
+            mask = mask.squeeze(-1)
+        elif mask.shape[0] == 1 and mask.ndim > 3:
+            mask = mask.squeeze(0)
+        else:
+            break
+
+    # 4D handling
+    if mask.ndim == 4:
+        if mask.shape[-1] in [3, 4]:
+            # RGB/RGBA IMAGE piped into mask [B, H, W, C]
+            mask = 0.2989 * mask[..., 0] + 0.5870 * mask[..., 1] + 0.1140 * mask[..., 2]
+        elif mask.shape[1] in [3, 4] and mask.shape[-1] > 4:
+            # Channels-first IMAGE piped into mask [B, C, H, W]
+            mask = 0.2989 * mask[:, 0] + 0.5870 * mask[:, 1] + 0.1140 * mask[:, 2]
+        elif mask.shape[-1] == 1:
+            mask = mask.squeeze(-1)
+        elif mask.shape[1] == 1:
+            mask = mask.squeeze(1)
+        else:
+            mask = mask[..., 0]
+
+    # 3D handling: check if trailing dimension was channels
+    if mask.ndim == 3:
+        if mask.shape[-1] == 1:
+            mask = mask.squeeze(-1)
+        elif mask.shape[-1] in [3, 4] and mask.shape[0] > 4:
+            # Unbatched RGB/RGBA image [H, W, C]
+            mask = 0.2989 * mask[..., 0] + 0.5870 * mask[..., 1] + 0.1140 * mask[..., 2]
+
+    # 2D -> 3D [H, W] -> [1, H, W]
+    if mask.ndim == 2:
+        mask = mask.unsqueeze(0)
+
+    if mask.ndim > 3:
+        mask = mask.reshape(mask.shape[0], mask.shape[-2], mask.shape[-1])
+
+    if mask.numel() > 0 and mask.max() > 1.0:
+        mask = mask / 255.0
+    mask = mask.clamp(0.0, 1.0)
+    return mask
+
+
 class ProcessorLogic(ABC):
     @abstractmethod
     def rescale_i(self, samples, width, height, algorithm: str):
@@ -109,15 +219,15 @@ class ProcessorLogic(ABC):
         pass
 
     def stitch_magic_im(self, canvas_image, inpainted_image, mask, ctc_x, ctc_y, ctc_w, ctc_h, cto_x, cto_y, cto_w, cto_h, downscale_algorithm, upscale_algorithm):
-        canvas_image = canvas_image.clone()
-        inpainted_image = inpainted_image.clone()
-        mask = mask.clone()
+        canvas_image = _sanitize_image_tensor(canvas_image, allow_grayscale=True)
+        inpainted_image = _sanitize_image_tensor(inpainted_image, allow_grayscale=True)
+        mask = _sanitize_mask_tensor(mask)
 
-        # Ensure inpainted_image is 4D [B, H, W, C]
-        if inpainted_image.ndim == 3:
-            inpainted_image = inpainted_image.unsqueeze(0)
-        if mask.ndim == 2:
-            mask = mask.unsqueeze(0)
+        if mask is None:
+            mask = torch.ones((inpainted_image.shape[0], inpainted_image.shape[1], inpainted_image.shape[2]), device=inpainted_image.device, dtype=inpainted_image.dtype)
+        elif mask.shape[0] != inpainted_image.shape[0]:
+            idx = [i % mask.shape[0] for i in range(inpainted_image.shape[0])]
+            mask = mask[idx]
 
         ctc_w = max(1, int(ctc_w))
         ctc_h = max(1, int(ctc_h))
@@ -133,6 +243,19 @@ class ProcessorLogic(ABC):
             resized_image = self.rescale_i(inpainted_image, ctc_w, ctc_h, downscale_algorithm)
             resized_mask = self.rescale_m(mask, ctc_w, ctc_h, downscale_algorithm)
 
+        # Defensively ensure resized_mask is 3D [B, H, W] before unsqueezing
+        if resized_mask.ndim == 4:
+            if resized_mask.shape[-1] == 1:
+                resized_mask = resized_mask.squeeze(-1)
+            elif resized_mask.shape[1] == 1:
+                resized_mask = resized_mask.squeeze(1)
+            elif resized_mask.shape[-1] in [3, 4]:
+                resized_mask = 0.2989 * resized_mask[..., 0] + 0.5870 * resized_mask[..., 1] + 0.1140 * resized_mask[..., 2]
+            else:
+                resized_mask = resized_mask[..., 0]
+        elif resized_mask.ndim == 2:
+            resized_mask = resized_mask.unsqueeze(0)
+
         # Clamp mask to [0, 1] and expand to match image channels
         resized_mask = resized_mask.clamp(0, 1).unsqueeze(-1)  # shape: [B, H, W, 1]
 
@@ -145,7 +268,11 @@ class ProcessorLogic(ABC):
 
         if crop_y2 <= crop_y1 or crop_x2 <= crop_x1:
             # Nothing to stitch / out of bounds
-            output_image = canvas_image[:, cto_y:cto_y + cto_h, cto_x:cto_x + cto_w]
+            out_y1 = max(0, min(canvas_h, int(cto_y)))
+            out_y2 = max(0, min(canvas_h, int(cto_y + cto_h)))
+            out_x1 = max(0, min(canvas_w, int(cto_x)))
+            out_x2 = max(0, min(canvas_w, int(cto_x + cto_w)))
+            output_image = canvas_image[:, out_y1:out_y2, out_x1:out_x2]
             return output_image
 
         # Extract the canvas region we're about to overwrite
@@ -172,8 +299,8 @@ class ProcessorLogic(ABC):
         elif c_canvas == 3 and c_inpaint == 4:
             # Canvas is RGB, inpaint has alpha (RGBA). Drop alpha channel to blend into RGB canvas.
             resized_image = resized_image[:, :, :, :3]
-        elif c_canvas == 1 and c_inpaint == 3:
-            # Grayscale canvas, RGB inpaint: convert inpaint to grayscale
+        elif c_canvas == 1 and c_inpaint in [3, 4]:
+            # Grayscale canvas, RGB/RGBA inpaint: convert inpaint to grayscale
             resized_image = (0.2989 * resized_image[:, :, :, 0:1] + 0.5870 * resized_image[:, :, :, 1:2] + 0.1140 * resized_image[:, :, :, 2:3])
         elif c_canvas == 3 and c_inpaint == 1:
             # RGB canvas, Grayscale inpaint: repeat to 3 channels
@@ -182,6 +309,10 @@ class ProcessorLogic(ABC):
             # RGBA canvas, Grayscale inpaint: repeat to 3 channels and preserve canvas alpha
             alpha = canvas_crop[:, :, :, 3:4].to(device=resized_image.device, dtype=resized_image.dtype)
             resized_image = torch.cat([resized_image.repeat(1, 1, 1, 3), alpha], dim=-1)
+        elif c_canvas == 4 and c_inpaint == 4:
+            pass  # Both are RGBA, blend directly
+        elif c_canvas == 3 and c_inpaint == 3:
+            pass  # Both are RGB, blend directly
         elif c_canvas != c_inpaint:
             # Fallback for unexpected channel counts
             if c_inpaint > c_canvas:
@@ -189,6 +320,11 @@ class ProcessorLogic(ABC):
             else:
                 repeats = (c_canvas + c_inpaint - 1) // c_inpaint
                 resized_image = resized_image.repeat(1, 1, 1, repeats)[:, :, :, :c_canvas]
+
+        # Sanitize NaNs and Infs
+        resized_image = torch.nan_to_num(resized_image, nan=0.0, posinf=1.0, neginf=0.0)
+        resized_mask = torch.nan_to_num(resized_mask, nan=0.0, posinf=1.0, neginf=0.0)
+        canvas_crop = torch.nan_to_num(canvas_crop, nan=0.0, posinf=1.0, neginf=0.0)
 
         # Ensure device and dtype match
         resized_image = resized_image.to(device=canvas_crop.device, dtype=canvas_crop.dtype)
@@ -240,7 +376,12 @@ class CPUProcessorLogic(ProcessorLogic):
         # samples shape: [B, H, W, C]
         width = max(1, int(width))
         height = max(1, int(height))
-        samples = samples.movedim(-1, 1) # [B, C, H, W]
+        c = samples.shape[-1]
+        if c == 2:
+            samples = torch.cat([samples[..., 0:1].repeat(1, 1, 1, 3), samples[..., 1:2]], dim=-1)
+        elif c > 4:
+            samples = samples[..., :4]
+        samples = samples.movedim(-1, 1)  # [B, C, H, W]
         algorithm_enum = _get_pil_resampling(algorithm)
         results = []
         for i in range(samples.shape[0]):
@@ -256,6 +397,15 @@ class CPUProcessorLogic(ProcessorLogic):
         height = max(1, int(height))
         if samples.ndim == 2:
             samples = samples.unsqueeze(0)
+        elif samples.ndim == 4:
+            if samples.shape[-1] == 1:
+                samples = samples.squeeze(-1)
+            elif samples.shape[1] == 1:
+                samples = samples.squeeze(1)
+            elif samples.shape[-1] in [3, 4]:
+                samples = 0.2989 * samples[..., 0] + 0.5870 * samples[..., 1] + 0.1140 * samples[..., 2]
+            else:
+                samples = samples[..., 0]
         algorithm_enum = _get_pil_resampling(algorithm)
         results = []
         for i in range(samples.shape[0]):
@@ -763,6 +913,11 @@ class GPUProcessorLogic(ProcessorLogic):
         # samples shape: [B, H, W, C]
         width = max(1, int(width))
         height = max(1, int(height))
+        c = samples.shape[-1]
+        if c == 2:
+            samples = torch.cat([samples[..., 0:1].repeat(1, 1, 1, 3), samples[..., 1:2]], dim=-1)
+        elif c > 4:
+            samples = samples[..., :4]
         mode = algorithm.lower()
         
         # CPU works better, fallback to CPU for rescaling
@@ -783,6 +938,15 @@ class GPUProcessorLogic(ProcessorLogic):
         height = max(1, int(height))
         if samples.ndim == 2:
             samples = samples.unsqueeze(0)
+        elif samples.ndim == 4:
+            if samples.shape[-1] == 1:
+                samples = samples.squeeze(-1)
+            elif samples.shape[1] == 1:
+                samples = samples.squeeze(1)
+            elif samples.shape[-1] in [3, 4]:
+                samples = 0.2989 * samples[..., 0] + 0.5870 * samples[..., 1] + 0.1140 * samples[..., 2]
+            else:
+                samples = samples[..., 0]
         mode = algorithm.lower()
         
         # CPU works better, fallback to CPU for rescaling
@@ -1458,55 +1622,9 @@ class InpaintCropImproved:
     #'''
  
     def inpaint_crop(self, image, downscale_algorithm, upscale_algorithm, preresize, preresize_mode, preresize_min_width, preresize_min_height, preresize_max_width, preresize_max_height, extend_for_outpainting, extend_up_factor, extend_down_factor, extend_left_factor, extend_right_factor, mask_hipass_filter, mask_fill_holes, mask_expand_pixels, mask_invert, mask_blend_pixels, context_from_mask_extend_factor, output_resize_to_target_size, output_target_width, output_target_height, output_padding, device_mode, mask=None, optional_context_mask=None):
-        image = image.clone()
-        if not image.is_floating_point():
-            image = image.float() / 255.0 if (image.numel() > 0 and image.max() > 1.0) else image.float()
-        if image.ndim == 3:
-            image = image.unsqueeze(0)  # (H, W, C) -> (1, H, W, C)
-
-        # Defensive layer handling for input image channels (1->RGB, 2->RGBA)
-        if image.shape[-1] == 1:
-            image = image.repeat(1, 1, 1, 3)
-        elif image.shape[-1] == 2:
-            image = torch.cat([image[..., 0:1].repeat(1, 1, 1, 3), image[..., 1:2]], dim=-1)
-
-        if mask is not None and mask.numel() == 0:
-            mask = None
-
-        if mask is not None:
-            mask = mask.clone()
-            if not mask.is_floating_point():
-                mask = mask.float()
-            if mask.ndim == 2:
-                mask = mask.unsqueeze(0)  # (H, W) -> (1, H, W)
-            elif mask.ndim == 4:
-                if mask.shape[1] == 1:
-                    mask = mask.squeeze(1)
-                elif mask.shape[-1] == 1:
-                    mask = mask.squeeze(-1)
-            # Defensive range normalization (e.g. 0-255 masks)
-            if mask.numel() > 0 and mask.max() > 1.0:
-                mask = mask / 255.0
-            mask = mask.clamp(0.0, 1.0)
-
-        if optional_context_mask is not None and optional_context_mask.numel() == 0:
-            optional_context_mask = None
-
-        if optional_context_mask is not None:
-            optional_context_mask = optional_context_mask.clone()
-            if not optional_context_mask.is_floating_point():
-                optional_context_mask = optional_context_mask.float()
-            if optional_context_mask.ndim == 2:
-                optional_context_mask = optional_context_mask.unsqueeze(0)  # (H, W) -> (1, H, W)
-            elif optional_context_mask.ndim == 4:
-                if optional_context_mask.shape[1] == 1:
-                    optional_context_mask = optional_context_mask.squeeze(1)
-                elif optional_context_mask.shape[-1] == 1:
-                    optional_context_mask = optional_context_mask.squeeze(-1)
-            # Defensive range normalization
-            if optional_context_mask.numel() > 0 and optional_context_mask.max() > 1.0:
-                optional_context_mask = optional_context_mask / 255.0
-            optional_context_mask = optional_context_mask.clamp(0.0, 1.0)
+        image = _sanitize_image_tensor(image)
+        mask = _sanitize_mask_tensor(mask)
+        optional_context_mask = _sanitize_mask_tensor(optional_context_mask)
 
         if device_mode == "gpu (much faster)":
             device = comfy.model_management.get_torch_device()
@@ -1520,6 +1638,19 @@ class InpaintCropImproved:
         output_padding = max(0, int(output_padding))
         output_target_width = max(1, int(output_target_width))
         output_target_height = max(1, int(output_target_height))
+
+        extend_up_factor = max(0.0, float(extend_up_factor))
+        extend_down_factor = max(0.0, float(extend_down_factor))
+        extend_left_factor = max(0.0, float(extend_left_factor))
+        extend_right_factor = max(0.0, float(extend_right_factor))
+
+        mask_expand_pixels = max(0, int(mask_expand_pixels))
+        mask_blend_pixels = max(0, int(mask_blend_pixels))
+        mask_hipass_filter = max(0.0, min(1.0, float(mask_hipass_filter)))
+        context_from_mask_extend_factor = max(1.0, float(context_from_mask_extend_factor))
+
+        downscale_algorithm = downscale_algorithm if isinstance(downscale_algorithm, str) else "bilinear"
+        upscale_algorithm = upscale_algorithm if isinstance(upscale_algorithm, str) else "bicubic"
 
         # Check that resolution parameters make sense (swap if min > max)
         if preresize and preresize_mode == "ensure minimum and maximum resolution":
@@ -1544,44 +1675,38 @@ class InpaintCropImproved:
             if output_target_height <= 1:
                 output_target_height = image.shape[1]
 
-        # When a LoadImage node passes a mask without user editing, it may be the wrong shape.
-        # Detect and fix that to avoid shape mismatch errors.
-        if mask is not None and (image.shape[0] == 1 or mask.shape[0] == 1 or mask.shape[0] == image.shape[0]):
-            if mask.shape[1] != image.shape[1] or mask.shape[2] != image.shape[2]:
-                if torch.count_nonzero(mask) == 0:
-                    mask = torch.zeros((mask.shape[0], image.shape[1], image.shape[2]), device=image.device, dtype=image.dtype)
-                else:
-                    mask = processor.rescale_m(mask, image.shape[2], image.shape[1], "bilinear")
+        # Spatial resolution reconciliation for mask and optional_context_mask
+        if mask is not None and (mask.shape[1] != image.shape[1] or mask.shape[2] != image.shape[2]):
+            if torch.count_nonzero(mask) == 0:
+                mask = torch.zeros((mask.shape[0], image.shape[1], image.shape[2]), device=image.device, dtype=image.dtype)
+            else:
+                mask = processor.rescale_m(mask, image.shape[2], image.shape[1], "bilinear")
 
-        if optional_context_mask is not None and (image.shape[0] == 1 or optional_context_mask.shape[0] == 1 or optional_context_mask.shape[0] == image.shape[0]):
-            if optional_context_mask.shape[1] != image.shape[1] or optional_context_mask.shape[2] != image.shape[2]:
-                if torch.count_nonzero(optional_context_mask) == 0:
-                    optional_context_mask = torch.zeros((optional_context_mask.shape[0], image.shape[1], image.shape[2]), device=image.device, dtype=image.dtype)
-                else:
-                    optional_context_mask = processor.rescale_m(optional_context_mask, image.shape[2], image.shape[1], "bilinear")
+        if optional_context_mask is not None and (optional_context_mask.shape[1] != image.shape[1] or optional_context_mask.shape[2] != image.shape[2]):
+            if torch.count_nonzero(optional_context_mask) == 0:
+                optional_context_mask = torch.zeros((optional_context_mask.shape[0], image.shape[1], image.shape[2]), device=image.device, dtype=image.dtype)
+            else:
+                optional_context_mask = processor.rescale_m(optional_context_mask, image.shape[2], image.shape[1], "bilinear")
 
         # If no mask is provided, create one with the shape of the image
         if mask is None:
             mask = torch.zeros_like(image[:, :, :, 0])
-    
-        # If there is only one image for many masks, replicate it for all masks
-        if mask.shape[0] > 1 and image.shape[0] == 1:
-            assert image.dim() == 4, f"Expected 4D BHWC image tensor, got {image.shape}"
-            image = image.expand(mask.shape[0], -1, -1, -1).clone()
-
-        # If there is only one mask for many images, replicate it for all images
-        if image.shape[0] > 1 and mask.shape[0] == 1:
-            assert mask.dim() == 3, f"Expected 3D BHW mask tensor, got {mask.shape}"
-            mask = mask.expand(image.shape[0], -1, -1).clone()
 
         # If no optional_context_mask is provided, create one with the shape of the image
         if optional_context_mask is None:
             optional_context_mask = torch.zeros_like(image[:, :, :, 0])
 
-        # If there is only one optional_context_mask for many images, replicate it for all images
-        if image.shape[0] > 1 and optional_context_mask.shape[0] == 1:
-            assert optional_context_mask.dim() == 3, f"Expected 3D BHW optional_context_mask tensor, got {optional_context_mask.shape}"
-            optional_context_mask = optional_context_mask.expand(image.shape[0], -1, -1).clone()
+        # Batch size harmonization across image, mask, and optional_context_mask
+        target_batch = max(image.shape[0], mask.shape[0], optional_context_mask.shape[0])
+        if image.shape[0] != target_batch:
+            idx = [i % image.shape[0] for i in range(target_batch)]
+            image = image[idx].clone()
+        if mask.shape[0] != target_batch:
+            idx = [i % mask.shape[0] for i in range(target_batch)]
+            mask = mask[idx].clone()
+        if optional_context_mask.shape[0] != target_batch:
+            idx = [i % optional_context_mask.shape[0] for i in range(target_batch)]
+            optional_context_mask = optional_context_mask[idx].clone()
 
         if self.DEBUG_MODE and getattr(self, "VERBOSE", True):
             print('Inpaint Crop Batch ready')
@@ -1829,20 +1954,18 @@ class InpaintStitchImproved:
 
 
     def inpaint_stitch(self, stitcher, inpainted_image):
-        inpainted_image = inpainted_image.clone()
-        if not inpainted_image.is_floating_point():
-            inpainted_image = inpainted_image.float() / 255.0 if (inpainted_image.numel() > 0 and inpainted_image.max() > 1.0) else inpainted_image.float()
-        if inpainted_image.ndim == 3:
-            if inpainted_image.shape[-1] in [1, 3, 4]:
-                inpainted_image = inpainted_image.unsqueeze(0)
-            else:
-                inpainted_image = inpainted_image.unsqueeze(-1)
-        results = []
+        if not isinstance(stitcher, dict):
+            raise TypeError(f"InpaintStitchImproved: stitcher input must be a dictionary, got {type(stitcher).__name__}. Ensure it was generated by InpaintCropImproved.")
 
         required_keys = ['cropped_to_canvas_x', 'cropped_to_canvas_y', 'cropped_to_canvas_w', 'cropped_to_canvas_h', 'canvas_image', 'cropped_mask_for_blend', 'canvas_to_orig_x', 'canvas_to_orig_y', 'canvas_to_orig_w', 'canvas_to_orig_h']
         for k in required_keys:
             if k not in stitcher:
                 raise ValueError(f"InpaintStitchImproved: Provided stitcher is missing required key '{k}'. Ensure it was generated by InpaintCropImproved.")
+            if isinstance(stitcher[k], (list, tuple)) and len(stitcher[k]) == 0:
+                raise ValueError(f"InpaintStitchImproved: stitcher key '{k}' contains an empty list.")
+
+        inpainted_image = _sanitize_image_tensor(inpainted_image, allow_grayscale=True)
+        results = []
         
         device_mode = stitcher.get('device_mode', 'cpu (compatible)')
 
