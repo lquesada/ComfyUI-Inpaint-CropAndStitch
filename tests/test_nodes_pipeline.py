@@ -155,6 +155,28 @@ class TestNodesPipeline(unittest.TestCase):
                         # Masked area was actually changed
                         self.assertFalse(torch.allclose(result[0, 75, 100, :3], rgba_img[0, 75, 100, :3]))
 
+    def test_roundtrip_semitransparent_with_resize_keeps_colors(self):
+        # Issue #181: resizing RGBA used to premultiply by alpha, turning colors in
+        # (semi-)transparent areas into noise. Crop with upscaling, stitch back the
+        # unmodified crop, and colors must survive at every alpha level.
+        H, W = 64, 64
+        rgba_img = torch.zeros(1, H, W, 4, dtype=torch.float32)
+        rgba_img[..., :3] = torch.tensor([0.8, 0.3, 0.5])
+        rgba_img[..., 3] = torch.linspace(0.0, 1.0, W)  # alpha gradient from fully transparent to opaque
+        mask = torch.zeros(1, H, W, dtype=torch.float32)
+        mask[:, 16:48, 8:56] = 1.0
+
+        for device_mode in ["cpu (compatible)", "gpu (much faster)"]:
+            with self.subTest(device_mode=device_mode):
+                args = self._default_crop_args(rgba_img.clone(), mask=mask, device_mode=device_mode,
+                                               output_resize_to_target_size=True, output_target_width=256, output_target_height=256)
+                stitcher, cropped_image, _ = self.crop_node.inpaint_crop(**args)[:3]
+                self.assertTrue(torch.allclose(cropped_image[..., :3], rgba_img[0, 0, 0, :3].expand_as(cropped_image[..., :3]), atol=0.01))
+
+                result = self.stitch_node.inpaint_stitch(stitcher, cropped_image)[0]
+                self.assertTrue(torch.allclose(result[..., :3], rgba_img[..., :3], atol=0.01))
+                self.assertTrue(torch.allclose(result[..., 3], rgba_img[..., 3], atol=0.02))
+
     def test_mask_dimensions_normalization(self):
         orig_img = torch.rand(1, 60, 60, 3, dtype=torch.float32)
 

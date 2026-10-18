@@ -346,6 +346,17 @@ class ProcessorLogic(ABC):
         return output_image
 
 
+def _pil_resize_image(chw: torch.Tensor, width: int, height: int, algorithm_enum) -> torch.Tensor:
+    # chw: [C, H, W]. Resize color and alpha separately: Pillow's RGBA resize
+    # premultiplies by alpha, which destroys colors in (semi-)transparent areas.
+    chw = chw.float().cpu()
+    if chw.shape[0] == 4:
+        rgb = F.to_tensor(F.to_pil_image(chw[:3]).resize((width, height), algorithm_enum))
+        alpha = F.to_tensor(F.to_pil_image(chw[3:4]).resize((width, height), algorithm_enum))
+        return torch.cat([rgb, alpha], dim=0)
+    return F.to_tensor(F.to_pil_image(chw).resize((width, height), algorithm_enum))
+
+
 def _get_pil_resampling(algorithm: str):
     if not isinstance(algorithm, str):
         return Image.Resampling.BILINEAR
@@ -385,8 +396,7 @@ class CPUProcessorLogic(ProcessorLogic):
         algorithm_enum = _get_pil_resampling(algorithm)
         results = []
         for i in range(samples.shape[0]):
-            samples_pil: Image.Image = F.to_pil_image(samples[i].float().cpu()).resize((width, height), algorithm_enum)
-            results.append(F.to_tensor(samples_pil))
+            results.append(_pil_resize_image(samples[i], width, height, algorithm_enum))
         samples = torch.stack(results, dim=0)
         samples = samples.movedim(1, -1)
         return samples
@@ -926,8 +936,7 @@ class GPUProcessorLogic(ProcessorLogic):
         algorithm_enum = _get_pil_resampling(algorithm)
         results = []
         for i in range(samples.shape[0]):
-            samples_pil: Image.Image = F.to_pil_image(samples[i].float().cpu()).resize((width, height), algorithm_enum)
-            results.append(F.to_tensor(samples_pil))
+            results.append(_pil_resize_image(samples[i], width, height, algorithm_enum))
         samples = torch.stack(results, dim=0).to(original_device)
         samples = samples.movedim(1, -1)
         return samples
