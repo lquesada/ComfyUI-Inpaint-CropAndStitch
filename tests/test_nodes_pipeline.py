@@ -126,6 +126,35 @@ class TestNodesPipeline(unittest.TestCase):
         # Final image must be 3 channels
         self.assertEqual(final_image.shape, (1, 80, 80, 3))
 
+    def test_roundtrip_transparent_background_preserved(self):
+        # Issue #181: RGBA image with a fully transparent background and an opaque subject.
+        # Everything outside the blended area (color and alpha) must come back unchanged.
+        torch.manual_seed(0)
+        H, W = 150, 200
+        rgba_img = torch.rand(1, H, W, 4, dtype=torch.float32)
+        rgba_img[..., 3] = 0.0
+        rgba_img[:, 50:100, 50:150, 3] = 1.0
+        mask = torch.zeros(1, H, W, dtype=torch.float32)
+        mask[:, 65:85, 75:125] = 1.0
+
+        # Region safely outside mask + blend radius
+        outside = torch.ones(1, H, W, dtype=torch.bool)
+        outside[:, 30:120, 40:160] = False
+
+        for device_mode in ["cpu (compatible)", "gpu (much faster)"]:
+            for blend in [0, 16]:
+                args = self._default_crop_args(rgba_img.clone(), mask=mask, device_mode=device_mode, mask_blend_pixels=blend)
+                stitcher, cropped_image, _ = self.crop_node.inpaint_crop(**args)[:3]
+                self.assertEqual(cropped_image.shape[-1], 4)
+
+                for inpainted in [torch.rand_like(cropped_image), torch.rand_like(cropped_image[..., :3])]:
+                    with self.subTest(device_mode=device_mode, blend=blend, inpaint_channels=inpainted.shape[-1]):
+                        result = self.stitch_node.inpaint_stitch(stitcher, inpainted)[0]
+                        self.assertEqual(result.shape, rgba_img.shape)
+                        self.assertTrue(torch.allclose(result[outside], rgba_img[outside], atol=1e-5))
+                        # Masked area was actually changed
+                        self.assertFalse(torch.allclose(result[0, 75, 100, :3], rgba_img[0, 75, 100, :3]))
+
     def test_mask_dimensions_normalization(self):
         orig_img = torch.rand(1, 60, 60, 3, dtype=torch.float32)
 
