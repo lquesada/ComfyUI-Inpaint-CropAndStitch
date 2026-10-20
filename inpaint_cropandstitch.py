@@ -138,6 +138,24 @@ def _sanitize_mask_tensor(mask: torch.Tensor) -> torch.Tensor:
     return mask
 
 
+def _add_opaque_alpha(image: torch.Tensor) -> torch.Tensor:
+    # [..., 1 or 3] -> [..., 4] with alpha = 1. Returns a new tensor.
+    if image.shape[-1] == 1:
+        image = image.repeat_interleave(3, dim=-1)
+    return torch.cat([image, torch.ones_like(image[..., :1])], dim=-1)
+
+
+def _has_pasted_transparency(image: torch.Tensor, mask: torch.Tensor) -> bool:
+    # True when an RGBA image has clearly transparent pixels where the mask will paste it.
+    # Opaque RGBA outputs (alpha ~1, e.g. regular Qwen 2.1 edits) return False.
+    if image.shape[-1] != 4:
+        return False
+    mask = mask.to(device=image.device)
+    if mask.ndim == image.ndim:
+        mask = mask[..., 0]
+    return bool(((image[..., 3] < 0.5) & (mask > 0)).any())
+
+
 class ProcessorLogic(ABC):
     @abstractmethod
     def rescale_i(self, samples, width, height, algorithm: str):
@@ -287,6 +305,13 @@ class ProcessorLogic(ABC):
             offset_x = crop_x1 - ctc_x
             resized_image = resized_image[:, offset_y:offset_y + actual_h, offset_x:offset_x + actual_w]
             resized_mask = resized_mask[:, offset_y:offset_y + actual_h, offset_x:offset_x + actual_w]
+
+        # Keep the inpainted transparency when the canvas has no alpha (issue #181: LoadImage
+        # drops alpha, then a model like Qwen 2.1 returns RGBA with transparent areas).
+        # The canvas is treated as fully opaque. Opaque RGBA inpaints keep the RGB output below.
+        if canvas_crop.shape[-1] in [1, 3] and _has_pasted_transparency(resized_image, resized_mask):
+            canvas_image = _add_opaque_alpha(canvas_image)
+            canvas_crop = canvas_image[:, crop_y1:crop_y2, crop_x1:crop_x2]
 
         # --- Channel reconciliation (defensive handling of RGB vs RGBA vs Grayscale) ---
         c_canvas = canvas_crop.shape[-1]
@@ -2006,6 +2031,10 @@ class InpaintStitchImproved:
 
             one_image, = self.inpaint_stitch_single_image(one_stitcher, one_image, processor)
             results.append(one_image.squeeze(0))
+
+        # Images that kept transparency come out RGBA; give the rest an opaque alpha so the batch stacks
+        if any(r.shape[-1] == 4 for r in results):
+            results = [r if r.shape[-1] == 4 else _add_opaque_alpha(r) for r in results]
 
         result_batch = torch.stack(results, dim=0)
         result_batch = result_batch.cpu()

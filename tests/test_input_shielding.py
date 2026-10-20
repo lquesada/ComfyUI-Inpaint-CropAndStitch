@@ -260,9 +260,10 @@ class TestInputShielding(unittest.TestCase):
         args = self._default_crop_args(orig_image, mask=mask)
         stitcher, crop_im, crop_m = self.crop_node.inpaint_crop(**args)[:3]
 
-        # Simulate Qwen 2.1 returning RGBA with 4 channels
+        # Simulate Qwen 2.1 returning RGBA with 4 channels for a regular (opaque) edit
         h, w = crop_im.shape[1], crop_im.shape[2]
         rgba_inpaint = torch.rand(1, h, w, 4, dtype=torch.float32)
+        rgba_inpaint[..., 3] = 1.0
 
         # Execute stitch
         (stitched,) = self.stitch_node.inpaint_stitch(stitcher, rgba_inpaint)

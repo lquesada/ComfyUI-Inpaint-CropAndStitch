@@ -90,11 +90,13 @@ class TestCropAndStitch(unittest.TestCase):
                 self.assertAlmostEqual(output[0, 30, 30, 3].item(), 0.75)
 
     def test_stitch_magic_im_rgb_canvas_rgba_inpaint(self):
-        # Canvas is RGB (3 channels), Inpaint is RGBA (4 channels)
+        # Canvas is RGB (3 channels), Inpaint is RGBA (4 channels) but fully opaque:
+        # alpha carries no information, so the output stays RGB.
         for name, proc in self.processors:
             with self.subTest(processor=name):
                 canvas_image = torch.ones(1, 100, 100, 3, dtype=torch.float32)
                 inpainted_image = torch.zeros(1, 40, 40, 4, dtype=torch.float32)
+                inpainted_image[..., 3] = 1.0
                 mask = torch.ones(1, 40, 40, dtype=torch.float32)
 
                 output = proc.stitch_magic_im(
@@ -104,6 +106,69 @@ class TestCropAndStitch(unittest.TestCase):
                 )
                 self.assertEqual(output.shape, (1, 100, 100, 3))
                 self.assertAlmostEqual(output[0, 30, 30, 0].item(), 0.0)
+
+    def test_stitch_magic_im_rgb_canvas_transparent_rgba_inpaint_keeps_alpha(self):
+        # Issue #181: ComfyUI's LoadImage drops alpha (canvas is RGB), and a model like
+        # Qwen 2.1 returns RGBA with transparent areas. The transparency must survive.
+        for name, proc in self.processors:
+            with self.subTest(processor=name):
+                canvas_image = torch.full((1, 100, 100, 3), 0.9, dtype=torch.float32)
+                inpainted_image = torch.zeros(1, 40, 40, 4, dtype=torch.float32)
+                inpainted_image[..., :3] = torch.tensor([0.5, 0.1, 0.6])  # purple junk under alpha
+                inpainted_image[:, :, 20:, 3] = 1.0                         # right half opaque, left half transparent
+                mask = torch.ones(1, 40, 40, dtype=torch.float32)
+                mask[:, 30:, :] = 0.5                                       # partial blend band at the bottom
+
+                output = proc.stitch_magic_im(
+                    canvas_image.clone(), inpainted_image, mask,
+                    20, 20, 40, 40, 0, 0, 100, 100,
+                    downscale_algorithm="bilinear", upscale_algorithm="bicubic"
+                )
+                self.assertEqual(output.shape, (1, 100, 100, 4))
+                # Outside the stitched area: canvas untouched and fully opaque
+                self.assertTrue(torch.allclose(output[0, :20, :, :3], canvas_image[0, :20, :, :]))
+                self.assertTrue(torch.allclose(output[0, :20, :, 3], torch.ones(20, 100)))
+                # Inside, full mask: inpainted color and inpainted alpha
+                self.assertAlmostEqual(output[0, 25, 25, 3].item(), 0.0, places=5)   # transparent half
+                self.assertAlmostEqual(output[0, 25, 50, 3].item(), 1.0, places=5)   # opaque half
+                self.assertTrue(torch.allclose(output[0, 25, 50, :3], torch.tensor([0.5, 0.1, 0.6]), atol=1 / 255))  # stitch resizes via 8-bit PIL
+                # Half mask: alpha blends between inpaint alpha and opaque canvas
+                self.assertAlmostEqual(output[0, 55, 25, 3].item(), 0.5, delta=1 / 255)
+                self.assertAlmostEqual(output[0, 55, 50, 3].item(), 1.0, places=5)
+
+    def test_stitch_magic_im_transparency_only_outside_mask_stays_rgb(self):
+        # Transparent pixels that are never pasted (mask 0) must not change the output format.
+        for name, proc in self.processors:
+            with self.subTest(processor=name):
+                canvas_image = torch.ones(1, 100, 100, 3, dtype=torch.float32)
+                inpainted_image = torch.zeros(1, 40, 40, 4, dtype=torch.float32)
+                inpainted_image[:, :20, :, 3] = 1.0
+                mask = torch.zeros(1, 40, 40, dtype=torch.float32)
+                mask[:, :20, :] = 1.0
+
+                output = proc.stitch_magic_im(
+                    canvas_image, inpainted_image, mask,
+                    20, 20, 40, 40, 0, 0, 100, 100,
+                    downscale_algorithm="bilinear", upscale_algorithm="bicubic"
+                )
+                self.assertEqual(output.shape, (1, 100, 100, 3))
+
+    def test_stitch_magic_im_transparent_inpaint_does_not_mutate_canvas(self):
+        # Promoting the canvas to RGBA must not alter the caller's canvas tensor.
+        for name, proc in self.processors:
+            with self.subTest(processor=name):
+                canvas_image = torch.ones(1, 100, 100, 3, dtype=torch.float32)
+                original = canvas_image.clone()
+                inpainted_image = torch.zeros(1, 40, 40, 4, dtype=torch.float32)
+                mask = torch.ones(1, 40, 40, dtype=torch.float32)
+
+                output = proc.stitch_magic_im(
+                    canvas_image, inpainted_image, mask,
+                    20, 20, 40, 40, 0, 0, 100, 100,
+                    downscale_algorithm="bilinear", upscale_algorithm="bicubic"
+                )
+                self.assertEqual(output.shape[-1], 4)
+                self.assertTrue(torch.equal(canvas_image, original))
 
     def test_stitch_magic_im_channel_matching_variants(self):
         # Grayscale canvas (1) + RGB inpaint (3)

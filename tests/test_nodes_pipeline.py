@@ -155,6 +155,69 @@ class TestNodesPipeline(unittest.TestCase):
                         # Masked area was actually changed
                         self.assertFalse(torch.allclose(result[0, 75, 100, :3], rgba_img[0, 75, 100, :3]))
 
+    def _issue_181_scene(self, H=110, W=93):
+        # Mimics ComfyUI LoadImage on a transparent PNG with painted eyes:
+        # IMAGE is RGB (alpha dropped, black under transparency), MASK = 1 - alpha + painted area.
+        alpha = torch.zeros(1, H, W)
+        alpha[:, 20:100, 15:80] = 1.0                      # opaque character
+        alpha[:, 19, 15:80] = 0.5                          # a semi-transparent edge row
+        rgb = torch.zeros(1, H, W, 3)
+        rgb[:, 20:100, 15:80] = torch.tensor([0.9, 0.75, 0.7])
+        image = rgb
+        mask = 1.0 - alpha
+        mask[:, 40:46, 30:60] = 1.0                        # painted "eyes"
+        return image, mask, alpha
+
+    def _issue_181_model_output(self, cropped_image, cropped_mask):
+        # Simulated Qwen 2.1: transparent background (alpha 0, purple junk RGB),
+        # opaque character, eyes recolored blue.
+        out = torch.ones(cropped_image.shape[:3] + (4,))
+        out[..., :3] = cropped_image
+        background = cropped_image.sum(-1) < 0.05
+        out[..., :3][background] = torch.tensor([0.5, 0.1, 0.6])
+        out[..., 3][background] = 0.0
+        return out
+
+    def test_issue_181_qwen_transparent_output_keeps_alpha(self):
+        image, mask, alpha = self._issue_181_scene()
+        for device_mode in ["cpu (compatible)", "gpu (much faster)"]:
+            with self.subTest(device_mode=device_mode):
+                # Settings from the reporter's workflow: expand 8, blend 8, resize to 512, padding 32
+                args = self._default_crop_args(image.clone(), mask=mask.clone(), device_mode=device_mode,
+                                               mask_expand_pixels=8, mask_blend_pixels=8,
+                                               context_from_mask_extend_factor=1.0,
+                                               output_resize_to_target_size=True,
+                                               output_target_width=512, output_target_height=512,
+                                               output_padding=32)
+                stitcher, cropped_image, cropped_mask = self.crop_node.inpaint_crop(**args)[:3]
+                inpainted = self._issue_181_model_output(cropped_image, cropped_mask)
+                result = self.stitch_node.inpaint_stitch(stitcher, inpainted)[0]
+
+                self.assertEqual(result.shape, (1, 110, 93, 4))
+                # Background (well away from the character) is transparent again
+                self.assertLess(result[0, 5, 5, 3].item(), 0.05)
+                self.assertLess(result[0, 105, 88, 3].item(), 0.05)
+                # Character interior away from the mask: color unchanged and opaque
+                self.assertTrue(torch.allclose(result[0, 70, 47, :3], image[0, 70, 47], atol=1e-4))
+                self.assertAlmostEqual(result[0, 70, 47, 3].item(), 1.0, places=4)
+                # Everything stays within [0, 1]
+                self.assertTrue((result >= 0).all() and (result <= 1).all())
+
+    def test_issue_181_batch_mixed_transparency_stacks(self):
+        # One stitched image ends up RGBA (transparent output), the other stays RGB-equivalent:
+        # the batch must still come out as a single RGBA tensor, with the opaque one at alpha 1.
+        image, mask, _ = self._issue_181_scene()
+        args = self._default_crop_args(image, mask=mask)
+        stitcher, cropped_image, cropped_mask = self.crop_node.inpaint_crop(**args)[:3]
+        transparent = self._issue_181_model_output(cropped_image, cropped_mask)
+        opaque = transparent.clone()
+        opaque[..., 3] = 1.0
+        result = self.stitch_node.inpaint_stitch(stitcher, torch.cat([transparent, opaque]))[0]
+
+        self.assertEqual(result.shape, (2, 110, 93, 4))
+        self.assertLess(result[0, 5, 5, 3].item(), 0.05)
+        self.assertTrue(torch.all(result[1, ..., 3] == 1.0))
+
     def test_roundtrip_semitransparent_with_resize_keeps_colors(self):
         # Issue #181: resizing RGBA used to premultiply by alpha, turning colors in
         # (semi-)transparent areas into noise. Crop with upscaling, stitch back the
