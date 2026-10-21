@@ -135,6 +135,35 @@ class TestInputShielding(unittest.TestCase):
         self.assertLessEqual(sanitized.max().item(), 1.0)
         self.assertGreaterEqual(sanitized.min().item(), 0.0)
 
+    def test_sanitize_mask_float_slightly_above_one_is_not_rescaled(self):
+        # Issue #182: blur/resize float noise can push a 0..1 mask slightly above 1.0.
+        # That must not be mistaken for a 0..255 mask.
+        for peak in [1.0000006, 1.05, 1.2]:
+            with self.subTest(peak=peak):
+                t = torch.zeros(1, 20, 20)
+                t[0, 5:15, 5:15] = 0.5
+                t[0, 10, 10] = peak
+                sanitized = _sanitize_mask_tensor(t)
+                self.assertAlmostEqual(sanitized[0, 6, 6].item(), 0.5, places=6)
+                self.assertEqual(sanitized[0, 10, 10].item(), 1.0)
+
+    def test_sanitize_mask_0_255_still_normalized(self):
+        float_255 = torch.zeros(1, 20, 20)
+        float_255[0, 5:15, 5:15] = 127.5
+        float_255[0, 10, 10] = 255.0
+        sanitized = _sanitize_mask_tensor(float_255)
+        self.assertAlmostEqual(sanitized[0, 6, 6].item(), 0.5, places=6)
+        self.assertAlmostEqual(sanitized[0, 10, 10].item(), 1.0, places=6)
+
+        uint8_255 = torch.zeros(1, 20, 20, dtype=torch.uint8)
+        uint8_255[0, 5:15, 5:15] = 255
+        self.assertAlmostEqual(_sanitize_mask_tensor(uint8_255)[0, 6, 6].item(), 1.0, places=6)
+
+        # Integer 0/1 masks keep their meaning
+        uint8_01 = torch.zeros(1, 20, 20, dtype=torch.uint8)
+        uint8_01[0, 5:15, 5:15] = 1
+        self.assertEqual(_sanitize_mask_tensor(uint8_01)[0, 6, 6].item(), 1.0)
+
     def test_sanitize_mask_nans_and_infs(self):
         t = torch.tensor([[float("nan"), float("inf"), float("-inf"), 0.5]])
         sanitized = _sanitize_mask_tensor(t)

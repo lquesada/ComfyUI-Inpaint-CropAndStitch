@@ -406,6 +406,19 @@ class TestNodesPipeline(unittest.TestCase):
         # Mask is clamped and normalized into [0.0, 1.0]
         self.assertLessEqual(crop_m.max().item(), 1.0)
 
+    def test_blurred_mask_float_noise_does_not_fall_back_to_whole_image(self):
+        # Issue #182: a blurred mask peaking at 1.0000006 was divided by 255, the hipass
+        # filter then erased it, and the crop fell back to the whole image.
+        img = torch.rand(1, 200, 200, 3, dtype=torch.float32)
+        mask = torch.zeros(1, 200, 200, dtype=torch.float32)
+        mask[0, 90:110, 90:110] = 1.0000006
+        mask[0, 85:115, 85:115] = torch.maximum(mask[0, 85:115, 85:115], torch.tensor(0.5))
+        args = self._default_crop_args(img, mask=mask, mask_hipass_filter=0.1)
+        stitcher, crop_im, crop_m = self.crop_node.inpaint_crop(**args)[:3]
+        self.assertLess(crop_im.shape[1], 100)
+        self.assertLess(crop_im.shape[2], 100)
+        self.assertEqual(crop_m.max().item(), 1.0)
+
     def test_preresize_min_greater_than_max_swap(self):
         # Inverted min/max resolutions (min=800, max=400)
         img = torch.rand(1, 60, 60, 3, dtype=torch.float32)

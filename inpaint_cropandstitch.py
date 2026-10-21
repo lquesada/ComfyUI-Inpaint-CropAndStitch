@@ -87,7 +87,8 @@ def _sanitize_mask_tensor(mask: torch.Tensor) -> torch.Tensor:
     if mask.numel() == 0:
         return None
     mask = mask.clone()
-    if not mask.is_floating_point():
+    is_integer_mask = not mask.is_floating_point()
+    if is_integer_mask:
         mask = mask.float()
     mask = torch.nan_to_num(mask, nan=0.0, posinf=1.0, neginf=0.0)
 
@@ -132,8 +133,12 @@ def _sanitize_mask_tensor(mask: torch.Tensor) -> torch.Tensor:
     if mask.ndim > 3:
         mask = mask.reshape(mask.shape[0], mask.shape[-2], mask.shape[-1])
 
-    if mask.numel() > 0 and mask.max() > 1.0:
-        mask = mask / 255.0
+    # Integer masks above 1 are 0..255. Float masks only count as 0..255 when clearly above 1:
+    # blur/resize noise can push a 0..1 mask slightly over 1.0 (issue #182).
+    if mask.numel() > 0:
+        peak = mask.max()
+        if (is_integer_mask and peak > 1.0) or peak > 2.0:
+            mask = mask / 255.0
     mask = mask.clamp(0.0, 1.0)
     return mask
 
